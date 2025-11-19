@@ -42,7 +42,8 @@ function App() {
   const fetchVehicles = async (datetime) => {
     try {
       // Format datetime as ISO 8601 without timezone
-      const isoString = datetime.toISOString().slice(0, 19);
+      // Sweden locale format is YYYY-MM-DD HH:MM:SS
+      const isoString = datetime.toLocaleString('sv').replace(' ', 'T');
       const response = await fetch(`/api/vehicles/at/${isoString}`);
       
       if (!response.ok) {
