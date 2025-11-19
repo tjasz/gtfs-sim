@@ -207,6 +207,47 @@ app.get('/services/on/:date', (req, res) => {
 });
 
 /**
+ * GET /vehicles/at/:datetime
+ * Returns vehicle positions at a specific date and time
+ * DateTime format: ISO 8601 without timezone (e.g., 2025-11-19T09:27:00)
+ */
+app.get('/vehicles/at/:datetime', (req, res) => {
+  try {
+    const datetimeStr = req.params.datetime;
+    
+    // Validate ISO 8601 format (basic check)
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(datetimeStr)) {
+      return res.status(400).json({ 
+        error: 'Invalid datetime format. Expected ISO 8601 format: YYYY-MM-DDTHH:MM:SS (e.g., 2025-11-19T09:27:00)' 
+      });
+    }
+    
+    // Parse datetime
+    const datetime = new Date(datetimeStr);
+    
+    if (isNaN(datetime.getTime())) {
+      return res.status(400).json({ 
+        error: 'Invalid datetime value' 
+      });
+    }
+    
+    const vehicles = gtfsDB.getVehiclePositions(datetime);
+    
+    res.json({
+      type: 'FeatureCollection',
+      properties: {
+        datetime: datetimeStr,
+        vehicle_count: vehicles.length
+      },
+      features: vehicles
+    });
+  } catch (error) {
+    console.error('Error fetching vehicle positions:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
  * Health check endpoint
  */
 app.get('/health', (req, res) => {
@@ -216,6 +257,7 @@ app.get('/health', (req, res) => {
     stopsLoaded: gtfsDB ? gtfsDB.stops.size : 0,
     routesLoaded: gtfsDB ? gtfsDB.routes.size : 0,
     tripsLoaded: gtfsDB ? gtfsDB.trips.size : 0,
+    stopTimesLoaded: gtfsDB ? gtfsDB.stopTimes.size : 0,
     calendarLoaded: gtfsDB ? gtfsDB.calendar.size : 0,
     calendarDatesLoaded: gtfsDB ? gtfsDB.calendarDates.size : 0
   });
@@ -244,6 +286,7 @@ async function startServer() {
       console.log(`  GET /trips/:id - Get a specific trip`);
       console.log(`  GET /trips/on/:date - Get trip IDs operating on a date (YYYYMMDD)`);
       console.log(`  GET /services/on/:date - Get service IDs operating on a date (YYYYMMDD)`);
+      console.log(`  GET /vehicles/at/:datetime - Get vehicle positions at a datetime (ISO 8601)`);
       console.log(`  GET /health - Health check`);
     });
   } catch (error) {

@@ -27,3 +27,19 @@ GET http://localhost:3000/trips/on/20251119
 
 ### Get services operating on a specific date
 GET http://localhost:3000/services/on/20251119
+
+### Get vehicle positions at a specific datetime
+GET http://localhost:3000/vehicles/at/2025-11-19T09:27:00
+
+### Get vehicle positions at morning rush hour
+GET http://localhost:3000/vehicles/at/2025-11-19T07:30:00
+
+### Get vehicle positions at midday
+GET http://localhost:3000/vehicles/at/2025-11-19T12:00:00
+
+### Get vehicle positions at evening rush hour
+GET http://localhost:3000/vehicles/at/2025-11-19T17:30:00
+
+### Test invalid datetime format (should return 400)
+GET http://localhost:3000/vehicles/at/2025-11-19 09:27:00
+

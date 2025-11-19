@@ -12,6 +12,7 @@ class GTFSDatabase {
     this.routes = new Map(); // Map<route_id, route object>
     this.trips = new Map(); // Map<trip_id, trip object>
     this.tripsByService = new Map(); // Map<service_id, Array<trip_id>>
+    this.stopTimes = new Map(); // Map<trip_id, Array<stop_time>>
     this.calendar = new Map(); // Map<service_id, calendar object>
     this.calendarDates = new Map(); // Map<date, Map<service_id, exception_type>>
   }
@@ -418,6 +419,65 @@ class GTFSDatabase {
   }
 
   /**
+   * Load stop times from stop_times.txt file
+   */
+  async loadStopTimes(filePath) {
+    return new Promise((resolve, reject) => {
+      const stopTimes = new Map();
+      
+      fs.createReadStream(filePath)
+        .pipe(parse({
+          columns: true,
+          skip_empty_lines: true,
+          trim: true
+        }))
+        .on('data', (row) => {
+          const tripId = row.trip_id;
+          const stopTime = {
+            trip_id: tripId,
+            stop_id: row.stop_id,
+            arrival_time: row.arrival_time,
+            departure_time: row.departure_time,
+            stop_sequence: parseInt(row.stop_sequence),
+            shape_dist_traveled: parseFloat(row.shape_dist_traveled),
+            timepoint: row.timepoint,
+            stop_headsign: row.stop_headsign,
+            pickup_type: row.pickup_type,
+            drop_off_type: row.drop_off_type
+          };
+          
+          if (!stopTimes.has(tripId)) {
+            stopTimes.set(tripId, []);
+          }
+          stopTimes.get(tripId).push(stopTime);
+        })
+        .on('end', () => {
+          // Sort stop times by sequence for each trip
+          for (const [tripId, times] of stopTimes.entries()) {
+            times.sort((a, b) => a.stop_sequence - b.stop_sequence);
+          }
+          
+          this.stopTimes = stopTimes;
+          console.log(`Loaded stop times for ${this.stopTimes.size} trips`);
+          resolve();
+        })
+        .on('error', reject);
+    });
+  }
+
+  /**
+   * Convert time string (HH:MM:SS) to seconds since midnight
+   * Handles times >= 24:00:00 for trips that run past midnight
+   */
+  timeToSeconds(timeStr) {
+    const parts = timeStr.split(':');
+    const hours = parseInt(parts[0]);
+    const minutes = parseInt(parts[1]);
+    const seconds = parseInt(parts[2]);
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+
+  /**
    * Get trip IDs operating on a specific date
    * @param {string} dateString - Date in YYYYMMDD format
    * @returns {Array<string>} - Array of trip IDs
@@ -434,6 +494,146 @@ class GTFSDatabase {
     }
     
     return tripIds;
+  }
+
+  /**
+   * Get vehicle positions at a specific date and time
+   * @param {Date} datetime - JavaScript Date object
+   * @returns {Array} - Array of GeoJSON Point features
+   */
+  getVehiclePositions(datetime) {
+    // Get date string in YYYYMMDD format
+    const year = datetime.getFullYear();
+    const month = String(datetime.getMonth() + 1).padStart(2, '0');
+    const day = String(datetime.getDate()).padStart(2, '0');
+    const dateString = `${year}${month}${day}`;
+    
+    // Get time in seconds since midnight
+    const currentSeconds = datetime.getHours() * 3600 + datetime.getMinutes() * 60 + datetime.getSeconds();
+    
+    // Get trips operating on this date
+    const tripIds = this.getTripsOnDate(dateString);
+    const vehicles = [];
+    
+    for (const tripId of tripIds) {
+      const stopTimes = this.stopTimes.get(tripId);
+      if (!stopTimes || stopTimes.length === 0) continue;
+      
+      const firstStop = stopTimes[0];
+      const lastStop = stopTimes[stopTimes.length - 1];
+      
+      const firstArrival = this.timeToSeconds(firstStop.arrival_time);
+      const lastDeparture = this.timeToSeconds(lastStop.departure_time);
+      
+      // Skip if vehicle hasn't started or has finished
+      if (currentSeconds < firstArrival || currentSeconds > lastDeparture) continue;
+      
+      // Find position
+      let position = null;
+      
+      // Check if at a stop
+      for (const stopTime of stopTimes) {
+        const arrival = this.timeToSeconds(stopTime.arrival_time);
+        const departure = this.timeToSeconds(stopTime.departure_time);
+        
+        if (currentSeconds >= arrival && currentSeconds <= departure) {
+          // Vehicle is at this stop
+          const stop = this.stops.get(stopTime.stop_id);
+          if (stop) {
+            position = {
+              type: 'Feature',
+              properties: {
+                trip_id: tripId,
+                stop_id: stopTime.stop_id,
+                stop_name: stop.stop_name,
+                shape_dist_traveled: stopTime.shape_dist_traveled,
+                status: 'at_stop'
+              },
+              geometry: {
+                type: 'Point',
+                coordinates: [stop.stop_lon, stop.stop_lat]
+              }
+            };
+          }
+          break;
+        }
+      }
+      
+      // If not at a stop, interpolate between stops
+      if (!position) {
+        for (let i = 0; i < stopTimes.length - 1; i++) {
+          const fromStop = stopTimes[i];
+          const toStop = stopTimes[i + 1];
+          
+          const fromDeparture = this.timeToSeconds(fromStop.departure_time);
+          const toArrival = this.timeToSeconds(toStop.arrival_time);
+          
+          if (currentSeconds > fromDeparture && currentSeconds < toArrival) {
+            // Vehicle is between these two stops
+            const timeElapsed = currentSeconds - fromDeparture;
+            const totalTime = toArrival - fromDeparture;
+            const timeRatio = timeElapsed / totalTime;
+            
+            // Calculate expected distance
+            const fromDistance = fromStop.shape_dist_traveled;
+            const toDistance = toStop.shape_dist_traveled;
+            const expectedDistance = fromDistance + (toDistance - fromDistance) * timeRatio;
+            
+            // Get the trip's shape
+            const trip = this.trips.get(tripId);
+            if (!trip || !trip.shape_id) continue;
+            
+            const shapePoints = this.shapes.get(trip.shape_id);
+            if (!shapePoints || shapePoints.length === 0) continue;
+            
+            // Find shape points surrounding the expected distance
+            let beforePoint = null;
+            let afterPoint = null;
+            
+            for (let j = 0; j < shapePoints.length - 1; j++) {
+              if (shapePoints[j].distance <= expectedDistance && 
+                  shapePoints[j + 1].distance >= expectedDistance) {
+                beforePoint = shapePoints[j];
+                afterPoint = shapePoints[j + 1];
+                break;
+              }
+            }
+            
+            if (beforePoint && afterPoint) {
+              // Interpolate position on the shape
+              const distDiff = afterPoint.distance - beforePoint.distance;
+              const distRatio = distDiff > 0 ? 
+                (expectedDistance - beforePoint.distance) / distDiff : 0;
+              
+              const lat = beforePoint.lat + (afterPoint.lat - beforePoint.lat) * distRatio;
+              const lon = beforePoint.lon + (afterPoint.lon - beforePoint.lon) * distRatio;
+              
+              position = {
+                type: 'Feature',
+                properties: {
+                  trip_id: tripId,
+                  shape_dist_traveled: expectedDistance,
+                  from_stop_id: fromStop.stop_id,
+                  to_stop_id: toStop.stop_id,
+                  status: 'in_transit'
+                },
+                geometry: {
+                  type: 'Point',
+                  coordinates: [lon, lat]
+                }
+              };
+            }
+            break;
+          }
+        }
+      }
+      
+      if (position) {
+        vehicles.push(position);
+      }
+    }
+    
+    return vehicles;
   }
 
   /**
@@ -532,6 +732,13 @@ export async function loadGTFSData(inputDir) {
     await db.loadCalendarDates(calendarDatesPath);
   } else {
     console.warn(`calendar_dates.txt not found at ${calendarDatesPath}`);
+  }
+
+  const stopTimesPath = path.join(inputDir, 'stop_times.txt');
+  if (fs.existsSync(stopTimesPath)) {
+    await db.loadStopTimes(stopTimesPath);
+  } else {
+    console.warn(`stop_times.txt not found at ${stopTimesPath}`);
   }
   
   console.log('GTFS data loaded successfully');

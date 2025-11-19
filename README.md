@@ -79,6 +79,7 @@ Returns server status and counts of loaded data.
   "stopsLoaded": 13172,
   "routesLoaded": 382,
   "tripsLoaded": 104222,
+  "stopTimesLoaded": 104222,
   "calendarLoaded": 153,
   "calendarDatesLoaded": 2899
 }
@@ -353,6 +354,74 @@ curl http://localhost:3000/services/on/20251119
 }
 ```
 
+### Get Vehicle Positions at DateTime
+```
+GET /vehicles/at/:datetime
+```
+Returns real-time vehicle positions at a specific date and time as GeoJSON Point features. DateTime must be in ISO 8601 format without timezone (agency-local time).
+
+This endpoint:
+1. Gets trips operating on the given date
+2. For each trip, checks its stop_times sequence
+3. Determines if the vehicle is at a stop or between stops
+4. For vehicles in transit, interpolates position along the shape based on:
+   - Time elapsed between stops
+   - Distance traveled along the shape
+   - Linear interpolation between shape points
+
+**Example:**
+```bash
+curl http://localhost:3000/vehicles/at/2025-11-19T09:27:00
+```
+
+**Example Response:**
+```json
+{
+  "type": "FeatureCollection",
+  "properties": {
+    "datetime": "2025-11-19T09:27:00",
+    "vehicle_count": 342
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "trip_id": "347619649",
+        "stop_id": "1-100",
+        "stop_name": "1st Ave & Spring St",
+        "shape_dist_traveled": 5262.0,
+        "status": "at_stop"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-122.336533, 47.605137]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "trip_id": "347619659",
+        "shape_dist_traveled": 12543.7,
+        "from_stop_id": "1-101",
+        "to_stop_id": "1-102",
+        "status": "in_transit"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-122.334123, 47.606542]
+      }
+    }
+  ]
+}
+```
+
+**Error Response (400):**
+```json
+{
+  "error": "Invalid datetime format. Expected ISO 8601 format: YYYY-MM-DDTHH:MM:SS (e.g., 2025-11-19T09:27:00)"
+}
+```
+
 ## Testing
 
 ### Manual Testing
@@ -386,6 +455,9 @@ curl http://localhost:3000/trips/on/20251119
 
 # Services on a date
 curl http://localhost:3000/services/on/20251119
+
+# Vehicle positions at a specific time
+curl http://localhost:3000/vehicles/at/2025-11-19T09:27:00
 ```
 
 ### Using PowerShell
@@ -401,6 +473,7 @@ Invoke-WebRequest -Uri http://localhost:3000/routes/100001 | Select-Object -Expa
 Invoke-WebRequest -Uri http://localhost:3000/trips/347619649 | Select-Object -Expand Content
 Invoke-WebRequest -Uri http://localhost:3000/trips/on/20251119 | Select-Object -Expand Content
 Invoke-WebRequest -Uri http://localhost:3000/services/on/20251119 | Select-Object -Expand Content
+Invoke-WebRequest -Uri http://localhost:3000/vehicles/at/2025-11-19T09:27:00 | Select-Object -Expand Content
 ```
 
 ### Using a Browser
@@ -413,6 +486,7 @@ Simply navigate to:
 - `http://localhost:3000/trips/347619649`
 - `http://localhost:3000/trips/on/20251119`
 - `http://localhost:3000/services/on/20251119`
+- `http://localhost:3000/vehicles/at/2025-11-19T09:27:00`
 
 ### Using test.http File
 
@@ -486,8 +560,8 @@ Shape data is converted to GeoJSON format following the [RFC 7946](https://tools
 
 ## Future Enhancements
 
-- Additional GTFS data loading (stop_times)
-- Vehicle position simulation based on schedules
+- Vehicle position simulation based on schedules ✅ (Implemented!)
+- Time acceleration controls for simulation
 - Real-time vehicle position endpoints
 - WebSocket support for live updates
 - React frontend for visualization
