@@ -149,6 +149,35 @@ app.get('/trips/:id', (req, res) => {
 });
 
 /**
+ * GET /trips/on/:date
+ * Returns trip IDs operating on a specific date
+ * Date format: YYYYMMDD
+ */
+app.get('/trips/on/:date', (req, res) => {
+  try {
+    const dateString = req.params.date;
+    
+    // Validate date format
+    if (!/^\d{8}$/.test(dateString)) {
+      return res.status(400).json({ 
+        error: 'Invalid date format. Expected YYYYMMDD (e.g., 20251119)' 
+      });
+    }
+    
+    const tripIds = gtfsDB.getTripsOnDate(dateString);
+    
+    res.json({
+      date: dateString,
+      trip_count: tripIds.length,
+      trip_ids: tripIds
+    });
+  } catch (error) {
+    console.error('Error fetching trips:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
  * GET /services/on/:date
  * Returns service IDs operating on a specific date
  * Date format: YYYYMMDD
@@ -213,6 +242,7 @@ async function startServer() {
       console.log(`  GET /routes/:id - Get a specific route`);
       console.log(`  GET /trips - Get all trips`);
       console.log(`  GET /trips/:id - Get a specific trip`);
+      console.log(`  GET /trips/on/:date - Get trip IDs operating on a date (YYYYMMDD)`);
       console.log(`  GET /services/on/:date - Get service IDs operating on a date (YYYYMMDD)`);
       console.log(`  GET /health - Health check`);
     });

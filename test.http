@@ -16,5 +16,23 @@ GET http://localhost:3000/routes/100001
 ### Get specific trip
 GET http://localhost:3000/trips/347619649
 
+### Get trip IDs operating on a specific date
+GET http://localhost:3000/trips/on/20251119
+
+### Get trip IDs on a different date
+GET http://localhost:3000/trips/on/20251120
+
+### Get trip IDs on a weekend date
+GET http://localhost:3000/trips/on/20251122
+
 ### Get services operating on a specific date
 GET http://localhost:3000/services/on/20251119
+
+### Get services on a different date
+GET http://localhost:3000/services/on/20251120
+
+### Test invalid date format (should return 400)
+GET http://localhost:3000/trips/on/2025-11-19
+
+### Test not found (should return 404)
+GET http://localhost:3000/trips/invalid_id

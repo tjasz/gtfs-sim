@@ -285,6 +285,36 @@ Returns a single trip by ID.
 curl http://localhost:3000/trips/347619649
 ```
 
+### Get Trips Operating on a Date
+```
+GET /trips/on/:date
+```
+Returns all trip IDs that are operating on a specific date. Date must be in YYYYMMDD format.
+
+This endpoint:
+1. Uses the service calendar logic to determine active service IDs
+2. Looks up all trips associated with those service IDs
+3. Returns the trip IDs (not full trip objects)
+
+**Example:**
+```bash
+curl http://localhost:3000/trips/on/20251119
+```
+
+**Example Response:**
+```json
+{
+  "date": "20251119",
+  "trip_count": 8234,
+  "trip_ids": [
+    "347619649",
+    "347619659",
+    "347619679",
+    ...
+  ]
+}
+```
+
 ### Get Services Operating on a Date
 ```
 GET /services/on/:date
@@ -351,6 +381,9 @@ curl http://localhost:3000/routes/100001
 # Trips
 curl http://localhost:3000/trips/347619649
 
+# Trips on a date
+curl http://localhost:3000/trips/on/20251119
+
 # Services on a date
 curl http://localhost:3000/services/on/20251119
 ```
@@ -366,6 +399,7 @@ Invoke-WebRequest -Uri http://localhost:3000/shapes/10002005 | Select-Object -Ex
 Invoke-WebRequest -Uri http://localhost:3000/stops/1-100 | Select-Object -Expand Content
 Invoke-WebRequest -Uri http://localhost:3000/routes/100001 | Select-Object -Expand Content
 Invoke-WebRequest -Uri http://localhost:3000/trips/347619649 | Select-Object -Expand Content
+Invoke-WebRequest -Uri http://localhost:3000/trips/on/20251119 | Select-Object -Expand Content
 Invoke-WebRequest -Uri http://localhost:3000/services/on/20251119 | Select-Object -Expand Content
 ```
 
@@ -377,7 +411,12 @@ Simply navigate to:
 - `http://localhost:3000/stops/1-100`
 - `http://localhost:3000/routes/100001`
 - `http://localhost:3000/trips/347619649`
+- `http://localhost:3000/trips/on/20251119`
 - `http://localhost:3000/services/on/20251119`
+
+### Using test.http File
+
+The project includes a `test.http` file with predefined API tests. Install the [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) extension in VS Code, then open `test.http` and click "Send Request" above any endpoint to test it.
 
 ## Configuration
 

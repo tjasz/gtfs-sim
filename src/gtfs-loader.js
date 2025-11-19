@@ -11,6 +11,7 @@ class GTFSDatabase {
     this.stops = new Map(); // Map<stop_id, stop object>
     this.routes = new Map(); // Map<route_id, route object>
     this.trips = new Map(); // Map<trip_id, trip object>
+    this.tripsByService = new Map(); // Map<service_id, Array<trip_id>>
     this.calendar = new Map(); // Map<service_id, calendar object>
     this.calendarDates = new Map(); // Map<date, Map<service_id, exception_type>>
   }
@@ -202,6 +203,7 @@ class GTFSDatabase {
   async loadTrips(filePath) {
     return new Promise((resolve, reject) => {
       const trips = new Map();
+      const tripsByService = new Map();
       
       fs.createReadStream(filePath)
         .pipe(parse({
@@ -210,10 +212,13 @@ class GTFSDatabase {
           trim: true
         }))
         .on('data', (row) => {
-          trips.set(row.trip_id, {
-            trip_id: row.trip_id,
+          const tripId = row.trip_id;
+          const serviceId = row.service_id;
+          
+          trips.set(tripId, {
+            trip_id: tripId,
             route_id: row.route_id,
-            service_id: row.service_id,
+            service_id: serviceId,
             trip_short_name: row.trip_short_name,
             trip_headsign: row.trip_headsign,
             direction_id: row.direction_id,
@@ -226,10 +231,17 @@ class GTFSDatabase {
             peak_offpeak: row.peak_offpeak,
             boarding_type: row.boarding_type
           });
+          
+          // Build index by service_id
+          if (!tripsByService.has(serviceId)) {
+            tripsByService.set(serviceId, []);
+          }
+          tripsByService.get(serviceId).push(tripId);
         })
         .on('end', () => {
           this.trips = trips;
-          console.log(`Loaded ${this.trips.size} trips`);
+          this.tripsByService = tripsByService;
+          console.log(`Loaded ${this.trips.size} trips indexed by ${this.tripsByService.size} services`);
           resolve();
         })
         .on('error', reject);
@@ -403,6 +415,25 @@ class GTFSDatabase {
         })
         .on('error', reject);
     });
+  }
+
+  /**
+   * Get trip IDs operating on a specific date
+   * @param {string} dateString - Date in YYYYMMDD format
+   * @returns {Array<string>} - Array of trip IDs
+   */
+  getTripsOnDate(dateString) {
+    const serviceIds = this.getServicesOnDate(dateString);
+    const tripIds = [];
+    
+    for (const serviceId of serviceIds) {
+      const trips = this.tripsByService.get(serviceId);
+      if (trips) {
+        tripIds.push(...trips);
+      }
+    }
+    
+    return tripIds;
   }
 
   /**
