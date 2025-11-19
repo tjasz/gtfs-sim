@@ -644,7 +644,12 @@ class GTFSDatabase {
               type: 'Feature',
               properties: {
                 trip_id: tripId,
-                route,
+                  route: {
+                    route_id: route ? route.route_id : null,
+                    route_short_name: route ? route.route_short_name : null,
+                    route_long_name: route ? route.route_long_name : null,
+                    route_type: route ? route.route_type : null
+                  },
                 stop_id: stopTime.stop_id,
                 stop_name: stop.stop_name,
                 shape_dist_traveled: stopTime.shape_dist_traveled,
@@ -716,7 +721,12 @@ class GTFSDatabase {
                 type: 'Feature',
                 properties: {
                   trip_id: tripId,
-                  route,
+                  route: {
+                    route_id: route ? route.route_id : null,
+                    route_short_name: route ? route.route_short_name : null,
+                    route_long_name: route ? route.route_long_name : null,
+                    route_type: route ? route.route_type : null
+                  },
                   shape_dist_traveled: expectedDistance,
                   from_stop_id: fromStop.stop_id,
                   to_stop_id: toStop.stop_id,
