@@ -8,12 +8,24 @@ This project visualizes public transit vehicles as they move along their routes 
 
 ## Features
 
+### Backend
 - **GTFS Data Loading**: Loads GTFS feeds into an in-memory database on startup
 - **GeoJSON APIs**: RESTful endpoints to retrieve transit data as GeoJSON
   - Shapes as LineString features
   - Stops as Point features
   - Routes and trips as standard JSON
 - **Fast In-Memory Database**: Quick access to transit data without external dependencies
+- **Real-time Vehicle Position Calculation**: Interpolates vehicle positions along routes based on schedules
+
+### Frontend
+- **Interactive Map**: Leaflet-based map with OpenStreetMap tiles
+- **Live Vehicle Tracking**: Real-time visualization of transit vehicles on the map
+- **Time Simulation Controls**:
+  - Play/Pause simulation
+  - Fast-forward with multiple speed settings (1x, 2x, 4x, 8x, 16x, 32x, 64x)
+  - Live clock showing simulated time
+- **Vehicle Information**: Click on any vehicle to see trip details and current status
+- **Automatic Updates**: Fetches vehicle positions twice per second
 
 ## Prerequisites
 
@@ -27,9 +39,16 @@ This project visualizes public transit vehicles as they move along their routes 
 cd c:\Users\Nukor\repos\gtfs-sim
 ```
 
-2. Install dependencies:
+2. Install backend dependencies:
 ```bash
 npm install
+```
+
+3. Install frontend dependencies:
+```bash
+cd client
+npm install
+cd ..
 ```
 
 ## Project Structure
@@ -39,29 +58,49 @@ gtfs-sim/
 ├── src/
 │   ├── server.js          # Express server and API endpoints
 │   └── gtfs-loader.js     # GTFS data loader and in-memory database
+├── client/
+│   ├── src/
+│   │   ├── App.jsx        # Main React component
+│   │   ├── App.css        # Styles
+│   │   └── main.jsx       # React entry point
+│   ├── index.html         # HTML template
+│   ├── vite.config.js     # Vite configuration
+│   └── package.json       # Frontend dependencies
 ├── input/
-│   └── puget_sound/       # GTFS data files
-│       ├── shapes.txt
-│       ├── stops.txt
-│       ├── routes.txt
-│       └── ...
-├── package.json
+│   ├── puget_sound/       # GTFS data files
+│   └── pierce_transit/    # Additional GTFS dataset
+├── package.json           # Backend dependencies
 └── README.md
 ```
 
 ## Running the Application
 
-### Development Mode (with auto-reload)
+### Backend Server
+
+#### Development Mode (with auto-reload)
 ```bash
 npm run dev
 ```
 
-### Production Mode
+#### Production Mode
 ```bash
 npm start
 ```
 
-The server will start on `http://localhost:3000` by default.
+The backend server will start on `http://localhost:3000` by default.
+
+### Frontend Application
+
+In a separate terminal:
+
+```bash
+cd client
+npm run dev
+```
+
+The frontend will start on `http://localhost:5173` and proxy API requests to the backend.
+
+**Note:** Both backend and frontend need to be running simultaneously for the full application to work.
 
 ### Selecting Input Data
 
