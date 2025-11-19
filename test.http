@@ -1,0 +1,8 @@
+### Health check
+GET http://localhost:3000/health
+
+### Get all shapes
+GET http://localhost:3000/shapes
+
+### Get specific shape
+GET http://localhost:3000/shapes/10002005

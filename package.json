@@ -1,0 +1,19 @@
+{
+  "name": "gtfs-sim",
+  "version": "1.0.0",
+  "description": "GTFS public transport simulation with real-time vehicle tracking",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test src/**/*.test.js"
+  },
+  "keywords": ["gtfs", "transit", "simulation", "geojson"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "csv-parse": "^5.5.3"
+  }
+}
