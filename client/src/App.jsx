@@ -134,7 +134,7 @@ function App() {
   const handleFastForward = () => {
     setSpeedMultiplier(prev => {
       const newSpeed = prev * 2;
-      return newSpeed > 64 ? 1 : newSpeed; // Cap at 64x, then reset to 1x
+      return newSpeed > 128 ? 1 : newSpeed; // Cap at 128x, then reset to 1x
     });
   };
 
