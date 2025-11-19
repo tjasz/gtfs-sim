@@ -540,10 +540,15 @@ class GTFSDatabase {
           // Vehicle is at this stop
           const stop = this.stops.get(stopTime.stop_id);
           if (stop) {
+            // Get trip and route information
+            const trip = this.trips.get(tripId);
+            const route = trip ? this.routes.get(trip.route_id) : null;
+            
             position = {
               type: 'Feature',
               properties: {
                 trip_id: tripId,
+                route,
                 stop_id: stopTime.stop_id,
                 stop_name: stop.stop_name,
                 shape_dist_traveled: stopTime.shape_dist_traveled,
@@ -608,10 +613,14 @@ class GTFSDatabase {
               const lat = beforePoint.lat + (afterPoint.lat - beforePoint.lat) * distRatio;
               const lon = beforePoint.lon + (afterPoint.lon - beforePoint.lon) * distRatio;
               
+              // Get route information
+              const route = trip ? this.routes.get(trip.route_id) : null;
+              
               position = {
                 type: 'Feature',
                 properties: {
                   trip_id: tripId,
+                  route,
                   shape_dist_traveled: expectedDistance,
                   from_stop_id: fromStop.stop_id,
                   to_stop_id: toStop.stop_id,
