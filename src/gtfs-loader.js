@@ -26,6 +26,38 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
 }
 
 /**
+ * Find the closest point on a line segment to a given point
+ * @param {number} px - Point X (longitude)
+ * @param {number} py - Point Y (latitude)
+ * @param {number} x1 - Segment start X (longitude)
+ * @param {number} y1 - Segment start Y (latitude)
+ * @param {number} x2 - Segment end X (longitude)
+ * @param {number} y2 - Segment end Y (latitude)
+ * @returns {Object} - {lon, lat, ratio} where ratio is position along segment [0-1]
+ */
+function closestPointOnSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  
+  // If segment is a point, return that point
+  if (dx === 0 && dy === 0) {
+    return { lon: x1, lat: y1, ratio: 0 };
+  }
+  
+  // Calculate projection of point onto line segment
+  const t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+  
+  // Clamp t to [0, 1] to stay within segment
+  const tClamped = Math.max(0, Math.min(1, t));
+  
+  return {
+    lon: x1 + tClamped * dx,
+    lat: y1 + tClamped * dy,
+    ratio: tClamped
+  };
+}
+
+/**
  * Find the closest point on a shape to a given stop location
  * @param {Array} shapePoints - Array of shape points with {lat, lon, distance}
  * @param {number} stopLat - Stop latitude
@@ -37,15 +69,32 @@ function findClosestPointOnShape(shapePoints, stopLat, stopLon) {
     return 0;
   }
 
+  if (shapePoints.length === 1) {
+    return shapePoints[0].distance;
+  }
+
   let minDistance = Infinity;
   let closestShapeDistance = 0;
 
-  // Check each shape point
-  for (const point of shapePoints) {
-    const dist = haversineDistance(stopLat, stopLon, point.lat, point.lon);
+  // Check each segment of the shape
+  for (let i = 0; i < shapePoints.length - 1; i++) {
+    const p1 = shapePoints[i];
+    const p2 = shapePoints[i + 1];
+    
+    // Find closest point on this segment to the stop
+    const closest = closestPointOnSegment(
+      stopLon, stopLat,
+      p1.lon, p1.lat,
+      p2.lon, p2.lat
+    );
+    
+    // Calculate distance from stop to this closest point
+    const dist = haversineDistance(stopLat, stopLon, closest.lat, closest.lon);
+    
     if (dist < minDistance) {
       minDistance = dist;
-      closestShapeDistance = point.distance;
+      // Interpolate distance along shape based on position along segment
+      closestShapeDistance = p1.distance + (p2.distance - p1.distance) * closest.ratio;
     }
   }
 
