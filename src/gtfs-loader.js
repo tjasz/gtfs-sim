@@ -235,6 +235,37 @@ class GTFSDatabase {
   }
 
   /**
+   * Convert stop to GeoJSON Point feature
+   */
+  stopToGeoJSON(stop) {
+    if (!stop) {
+      return null;
+    }
+
+    return {
+      type: 'Feature',
+      properties: {
+        stop_id: stop.stop_id,
+        stop_name: stop.stop_name,
+        stop_code: stop.stop_code,
+        stop_desc: stop.stop_desc,
+        zone_id: stop.zone_id,
+        stop_url: stop.stop_url,
+        location_type: stop.location_type,
+        parent_station: stop.parent_station,
+        wheelchair_boarding: stop.wheelchair_boarding,
+        stop_timezone: stop.stop_timezone,
+        platform_code: stop.platform_code,
+        tts_stop_name: stop.tts_stop_name
+      },
+      geometry: {
+        type: 'Point',
+        coordinates: [stop.stop_lon, stop.stop_lat]
+      }
+    };
+  }
+
+  /**
    * Get stop by ID
    */
   getStop(stopId) {
@@ -242,7 +273,34 @@ class GTFSDatabase {
   }
 
   /**
-   * Get all stops
+   * Get all stops as GeoJSON FeatureCollection
+   */
+  getAllStopsGeoJSON() {
+    const features = [];
+    
+    for (const stop of this.stops.values()) {
+      const feature = this.stopToGeoJSON(stop);
+      if (feature) {
+        features.push(feature);
+      }
+    }
+
+    return {
+      type: 'FeatureCollection',
+      features
+    };
+  }
+
+  /**
+   * Get single stop as GeoJSON Feature
+   */
+  getStopGeoJSON(stopId) {
+    const stop = this.getStop(stopId);
+    return this.stopToGeoJSON(stop);
+  }
+
+  /**
+   * Get all stops (raw data)
    */
   getAllStops() {
     return Array.from(this.stops.values());

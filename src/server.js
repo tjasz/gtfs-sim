@@ -48,12 +48,12 @@ app.get('/shapes/:id', (req, res) => {
 
 /**
  * GET /stops
- * Returns all stops
+ * Returns all stops as a GeoJSON FeatureCollection
  */
 app.get('/stops', (req, res) => {
   try {
-    const stops = gtfsDB.getAllStops();
-    res.json(stops);
+    const geoJSON = gtfsDB.getAllStopsGeoJSON();
+    res.json(geoJSON);
   } catch (error) {
     console.error('Error fetching stops:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -62,18 +62,18 @@ app.get('/stops', (req, res) => {
 
 /**
  * GET /stops/:id
- * Returns a single stop by ID
+ * Returns a single stop as a GeoJSON Feature
  */
 app.get('/stops/:id', (req, res) => {
   try {
     const stopId = req.params.id;
-    const stop = gtfsDB.getStop(stopId);
+    const geoJSON = gtfsDB.getStopGeoJSON(stopId);
     
-    if (!stop) {
+    if (!geoJSON) {
       return res.status(404).json({ error: `Stop with id '${stopId}' not found` });
     }
     
-    res.json(stop);
+    res.json(geoJSON);
   } catch (error) {
     console.error('Error fetching stop:', error);
     res.status(500).json({ error: 'Internal server error' });

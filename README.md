@@ -9,7 +9,10 @@ This project visualizes public transit vehicles as they move along their routes 
 ## Features
 
 - **GTFS Data Loading**: Loads GTFS feeds into an in-memory database on startup
-- **Shape API**: RESTful endpoints to retrieve transit route shapes as GeoJSON
+- **GeoJSON APIs**: RESTful endpoints to retrieve transit data as GeoJSON
+  - Shapes as LineString features
+  - Stops as Point features
+  - Routes and trips as standard JSON
 - **Fast In-Memory Database**: Quick access to transit data without external dependencies
 
 ## Prerequisites
@@ -153,34 +156,61 @@ curl http://localhost:3000/shapes/10002005
 ```
 GET /stops
 ```
-Returns all transit stops.
+Returns all transit stops as a GeoJSON FeatureCollection.
 
 **Example Response:**
 ```json
-[
-  {
-    "stop_id": "1-100",
-    "stop_name": "1st Ave & Spring St",
-    "stop_lat": 47.605137,
-    "stop_lon": -122.336533,
-    "stop_code": "100",
-    "zone_id": "21",
-    "wheelchair_boarding": "1",
-    "stop_timezone": "America/Los_Angeles"
-  },
-  ...
-]
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "stop_id": "1-100",
+        "stop_name": "1st Ave & Spring St",
+        "stop_code": "100",
+        "zone_id": "21",
+        "wheelchair_boarding": "1",
+        "stop_timezone": "America/Los_Angeles"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-122.336533, 47.605137]
+      }
+    },
+    ...
+  ]
+}
 ```
 
 ### Get Stop by ID
 ```
 GET /stops/:id
 ```
-Returns a single stop by ID.
+Returns a single stop as a GeoJSON Feature.
 
 **Example:**
 ```bash
 curl http://localhost:3000/stops/1-100
+```
+
+**Example Response:**
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "stop_id": "1-100",
+    "stop_name": "1st Ave & Spring St",
+    "stop_code": "100",
+    "zone_id": "21",
+    "wheelchair_boarding": "1",
+    "stop_timezone": "America/Los_Angeles"
+  },
+  "geometry": {
+    "type": "Point",
+    "coordinates": [-122.336533, 47.605137]
+  }
+}
 ```
 
 ### Get All Routes
