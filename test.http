@@ -6,3 +6,12 @@ GET http://localhost:3000/shapes
 
 ### Get specific shape
 GET http://localhost:3000/shapes/10002005
+
+### Get specific stop
+GET http://localhost:3000/stops/1-100
+
+### Get route
+GET http://localhost:3000/routes/100001
+
+### Get trip
+GET http://localhost:3000/trips/347619649

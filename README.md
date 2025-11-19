@@ -66,13 +66,16 @@ The server will start on `http://localhost:3000` by default.
 ```
 GET /health
 ```
-Returns server status and number of shapes loaded.
+Returns server status and counts of loaded data.
 
 **Example Response:**
 ```json
 {
   "status": "ok",
-  "shapesLoaded": 1234
+  "shapesLoaded": 1206,
+  "stopsLoaded": 13172,
+  "routesLoaded": 382,
+  "tripsLoaded": 104222
 }
 ```
 
@@ -146,6 +149,110 @@ curl http://localhost:3000/shapes/10002005
 }
 ```
 
+### Get All Stops
+```
+GET /stops
+```
+Returns all transit stops.
+
+**Example Response:**
+```json
+[
+  {
+    "stop_id": "1-100",
+    "stop_name": "1st Ave & Spring St",
+    "stop_lat": 47.605137,
+    "stop_lon": -122.336533,
+    "stop_code": "100",
+    "zone_id": "21",
+    "wheelchair_boarding": "1",
+    "stop_timezone": "America/Los_Angeles"
+  },
+  ...
+]
+```
+
+### Get Stop by ID
+```
+GET /stops/:id
+```
+Returns a single stop by ID.
+
+**Example:**
+```bash
+curl http://localhost:3000/stops/1-100
+```
+
+### Get All Routes
+```
+GET /routes
+```
+Returns all transit routes.
+
+**Example Response:**
+```json
+[
+  {
+    "route_id": "100001",
+    "agency_id": "1",
+    "route_short_name": "1",
+    "route_long_name": "",
+    "route_type": "3",
+    "route_desc": "Kinnear - Downtown Seattle",
+    "route_url": "https://kingcounty.gov/en/dept/metro/routes-and-service/schedules-and-maps/001.html",
+    "route_color": "FDB71A",
+    "route_text_color": "000000"
+  },
+  ...
+]
+```
+
+### Get Route by ID
+```
+GET /routes/:id
+```
+Returns a single route by ID.
+
+**Example:**
+```bash
+curl http://localhost:3000/routes/100001
+```
+
+### Get All Trips
+```
+GET /trips
+```
+Returns all trips.
+
+**Example Response:**
+```json
+[
+  {
+    "trip_id": "347619649",
+    "route_id": "102548",
+    "service_id": "32350",
+    "trip_headsign": "Bellevue Transit Center Crossroads",
+    "direction_id": "1",
+    "block_id": "7765475",
+    "shape_id": "30672005",
+    "wheelchair_accessible": "1",
+    "bikes_allowed": "1"
+  },
+  ...
+]
+```
+
+### Get Trip by ID
+```
+GET /trips/:id
+```
+Returns a single trip by ID.
+
+**Example:**
+```bash
+curl http://localhost:3000/trips/347619649
+```
+
 ## Testing
 
 ### Manual Testing
@@ -160,14 +267,19 @@ npm start
 curl http://localhost:3000/health
 ```
 
-3. Test getting all shapes (Note: this may return a large response):
+3. Test the endpoints (Note: list endpoints may return large responses):
 ```bash
-curl http://localhost:3000/shapes
-```
-
-4. Test getting a specific shape:
-```bash
+# Shapes
 curl http://localhost:3000/shapes/10002005
+
+# Stops
+curl http://localhost:3000/stops/1-100
+
+# Routes
+curl http://localhost:3000/routes/100001
+
+# Trips
+curl http://localhost:3000/trips/347619649
 ```
 
 ### Using PowerShell
@@ -176,8 +288,11 @@ curl http://localhost:3000/shapes/10002005
 # Health check
 Invoke-WebRequest -Uri http://localhost:3000/health | Select-Object -Expand Content
 
-# Get specific shape
+# Get specific resources
 Invoke-WebRequest -Uri http://localhost:3000/shapes/10002005 | Select-Object -Expand Content
+Invoke-WebRequest -Uri http://localhost:3000/stops/1-100 | Select-Object -Expand Content
+Invoke-WebRequest -Uri http://localhost:3000/routes/100001 | Select-Object -Expand Content
+Invoke-WebRequest -Uri http://localhost:3000/trips/347619649 | Select-Object -Expand Content
 ```
 
 ### Using a Browser
@@ -185,6 +300,9 @@ Invoke-WebRequest -Uri http://localhost:3000/shapes/10002005 | Select-Object -Ex
 Simply navigate to:
 - `http://localhost:3000/health`
 - `http://localhost:3000/shapes/10002005`
+- `http://localhost:3000/stops/1-100`
+- `http://localhost:3000/routes/100001`
+- `http://localhost:3000/trips/347619649`
 
 ## Configuration
 
@@ -204,13 +322,37 @@ The application expects GTFS files to be in `input/puget_sound/`. To use a diffe
 
 ## Data Format
 
-### GTFS Shapes
-The application reads `shapes.txt` files in GTFS format:
+### GTFS Data
+The application reads standard GTFS files:
+
+**Shapes** (`shapes.txt`):
 - `shape_id`: Unique identifier for the shape
 - `shape_pt_lat`: Latitude of the shape point
 - `shape_pt_lon`: Longitude of the shape point
 - `shape_pt_sequence`: Sequence order of the point
 - `shape_dist_traveled`: Distance traveled along the shape
+
+**Stops** (`stops.txt`):
+- `stop_id`: Unique identifier for the stop
+- `stop_name`: Name of the stop
+- `stop_lat`: Latitude of the stop
+- `stop_lon`: Longitude of the stop
+- Additional fields: `stop_code`, `zone_id`, `wheelchair_boarding`, etc.
+
+**Routes** (`routes.txt`):
+- `route_id`: Unique identifier for the route
+- `route_short_name`: Short name (e.g., "1", "10")
+- `route_long_name`: Full descriptive name
+- `route_type`: Type of transportation (3 = bus)
+- Additional fields: `route_color`, `route_url`, etc.
+
+**Trips** (`trips.txt`):
+- `trip_id`: Unique identifier for the trip
+- `route_id`: Route this trip belongs to
+- `service_id`: Service calendar reference
+- `shape_id`: Shape this trip follows
+- `trip_headsign`: Destination displayed to riders
+- Additional fields: `direction_id`, `block_id`, etc.
 
 ### GeoJSON Output
 Shape data is converted to GeoJSON format following the [RFC 7946](https://tools.ietf.org/html/rfc7946) specification:
@@ -219,7 +361,7 @@ Shape data is converted to GeoJSON format following the [RFC 7946](https://tools
 
 ## Future Enhancements
 
-- Additional GTFS data loading (stops, routes, trips, stop_times)
+- Additional GTFS data loading (stop_times, calendar, calendar_dates)
 - Vehicle position simulation based on schedules
 - Real-time vehicle position endpoints
 - WebSocket support for live updates
