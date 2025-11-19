@@ -10,8 +10,11 @@ GET http://localhost:3000/shapes/10002005
 ### Get specific stop
 GET http://localhost:3000/stops/1-100
 
-### Get route
+### Get specific route
 GET http://localhost:3000/routes/100001
 
-### Get trip
+### Get specific trip
 GET http://localhost:3000/trips/347619649
+
+### Get services operating on a specific date
+GET http://localhost:3000/services/on/20251119

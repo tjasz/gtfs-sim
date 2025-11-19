@@ -11,6 +11,8 @@ class GTFSDatabase {
     this.stops = new Map(); // Map<stop_id, stop object>
     this.routes = new Map(); // Map<route_id, route object>
     this.trips = new Map(); // Map<trip_id, trip object>
+    this.calendar = new Map(); // Map<service_id, calendar object>
+    this.calendarDates = new Map(); // Map<date, Map<service_id, exception_type>>
   }
 
   /**
@@ -333,6 +335,122 @@ class GTFSDatabase {
   getAllTrips() {
     return Array.from(this.trips.values());
   }
+
+  /**
+   * Load calendar from calendar.txt file
+   */
+  async loadCalendar(filePath) {
+    return new Promise((resolve, reject) => {
+      const calendar = new Map();
+      
+      fs.createReadStream(filePath)
+        .pipe(parse({
+          columns: true,
+          skip_empty_lines: true,
+          trim: true
+        }))
+        .on('data', (row) => {
+          calendar.set(row.service_id, {
+            service_id: row.service_id,
+            monday: row.monday === '1',
+            tuesday: row.tuesday === '1',
+            wednesday: row.wednesday === '1',
+            thursday: row.thursday === '1',
+            friday: row.friday === '1',
+            saturday: row.saturday === '1',
+            sunday: row.sunday === '1',
+            start_date: row.start_date,
+            end_date: row.end_date
+          });
+        })
+        .on('end', () => {
+          this.calendar = calendar;
+          console.log(`Loaded ${this.calendar.size} calendar entries`);
+          resolve();
+        })
+        .on('error', reject);
+    });
+  }
+
+  /**
+   * Load calendar dates from calendar_dates.txt file
+   * Structure: Map<date, Map<service_id, exception_type>>
+   */
+  async loadCalendarDates(filePath) {
+    return new Promise((resolve, reject) => {
+      const calendarDates = new Map();
+      
+      fs.createReadStream(filePath)
+        .pipe(parse({
+          columns: true,
+          skip_empty_lines: true,
+          trim: true
+        }))
+        .on('data', (row) => {
+          const date = row.date;
+          const serviceId = row.service_id;
+          const exceptionType = parseInt(row.exception_type);
+          
+          if (!calendarDates.has(date)) {
+            calendarDates.set(date, new Map());
+          }
+          calendarDates.get(date).set(serviceId, exceptionType);
+        })
+        .on('end', () => {
+          this.calendarDates = calendarDates;
+          console.log(`Loaded ${this.calendarDates.size} dates with calendar exceptions`);
+          resolve();
+        })
+        .on('error', reject);
+    });
+  }
+
+  /**
+   * Get service IDs operating on a specific date
+   * @param {string} dateString - Date in YYYYMMDD format
+   * @returns {Array<string>} - Array of service IDs
+   */
+  getServicesOnDate(dateString) {
+    const serviceIds = new Set();
+    
+    // Parse the date and determine day of week
+    const year = parseInt(dateString.substring(0, 4));
+    const month = parseInt(dateString.substring(4, 6)) - 1; // JS months are 0-indexed
+    const day = parseInt(dateString.substring(6, 8));
+    const date = new Date(year, month, day);
+    const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Map day of week to calendar field names
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = dayNames[dayOfWeek];
+    
+    // Scan through calendar entries
+    for (const [serviceId, calendarEntry] of this.calendar.entries()) {
+      // Check if date is within the service period
+      if (dateString >= calendarEntry.start_date && dateString <= calendarEntry.end_date) {
+        // Check if service operates on this day of week
+        if (calendarEntry[dayName]) {
+          serviceIds.add(serviceId);
+        }
+      }
+    }
+    
+    // Apply exceptions from calendar_dates
+    const exceptions = this.calendarDates.get(dateString);
+    if (exceptions) {
+      for (const [serviceId, exceptionType] of exceptions.entries()) {
+        if (exceptionType === 1) {
+          // Service added for this date
+          serviceIds.add(serviceId);
+        } else if (exceptionType === 2) {
+          // Service removed for this date
+          serviceIds.delete(serviceId);
+        }
+      }
+    }
+    
+    return Array.from(serviceIds);
+  }
 }
 
 /**
@@ -369,6 +487,20 @@ export async function loadGTFSData(inputDir) {
     await db.loadTrips(tripsPath);
   } else {
     console.warn(`trips.txt not found at ${tripsPath}`);
+  }
+
+  const calendarPath = path.join(inputDir, 'calendar.txt');
+  if (fs.existsSync(calendarPath)) {
+    await db.loadCalendar(calendarPath);
+  } else {
+    console.warn(`calendar.txt not found at ${calendarPath}`);
+  }
+
+  const calendarDatesPath = path.join(inputDir, 'calendar_dates.txt');
+  if (fs.existsSync(calendarDatesPath)) {
+    await db.loadCalendarDates(calendarDatesPath);
+  } else {
+    console.warn(`calendar_dates.txt not found at ${calendarDatesPath}`);
   }
   
   console.log('GTFS data loaded successfully');

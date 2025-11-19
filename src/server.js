@@ -149,6 +149,35 @@ app.get('/trips/:id', (req, res) => {
 });
 
 /**
+ * GET /services/on/:date
+ * Returns service IDs operating on a specific date
+ * Date format: YYYYMMDD
+ */
+app.get('/services/on/:date', (req, res) => {
+  try {
+    const dateString = req.params.date;
+    
+    // Validate date format
+    if (!/^\d{8}$/.test(dateString)) {
+      return res.status(400).json({ 
+        error: 'Invalid date format. Expected YYYYMMDD (e.g., 20251119)' 
+      });
+    }
+    
+    const serviceIds = gtfsDB.getServicesOnDate(dateString);
+    
+    res.json({
+      date: dateString,
+      service_count: serviceIds.length,
+      service_ids: serviceIds
+    });
+  } catch (error) {
+    console.error('Error fetching services:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
  * Health check endpoint
  */
 app.get('/health', (req, res) => {
@@ -157,7 +186,9 @@ app.get('/health', (req, res) => {
     shapesLoaded: gtfsDB ? gtfsDB.shapes.size : 0,
     stopsLoaded: gtfsDB ? gtfsDB.stops.size : 0,
     routesLoaded: gtfsDB ? gtfsDB.routes.size : 0,
-    tripsLoaded: gtfsDB ? gtfsDB.trips.size : 0
+    tripsLoaded: gtfsDB ? gtfsDB.trips.size : 0,
+    calendarLoaded: gtfsDB ? gtfsDB.calendar.size : 0,
+    calendarDatesLoaded: gtfsDB ? gtfsDB.calendarDates.size : 0
   });
 });
 
@@ -182,6 +213,7 @@ async function startServer() {
       console.log(`  GET /routes/:id - Get a specific route`);
       console.log(`  GET /trips - Get all trips`);
       console.log(`  GET /trips/:id - Get a specific trip`);
+      console.log(`  GET /services/on/:date - Get service IDs operating on a date (YYYYMMDD)`);
       console.log(`  GET /health - Health check`);
     });
   } catch (error) {

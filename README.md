@@ -78,7 +78,9 @@ Returns server status and counts of loaded data.
   "shapesLoaded": 1206,
   "stopsLoaded": 13172,
   "routesLoaded": 382,
-  "tripsLoaded": 104222
+  "tripsLoaded": 104222,
+  "calendarLoaded": 153,
+  "calendarDatesLoaded": 2899
 }
 ```
 
@@ -283,6 +285,44 @@ Returns a single trip by ID.
 curl http://localhost:3000/trips/347619649
 ```
 
+### Get Services Operating on a Date
+```
+GET /services/on/:date
+```
+Returns all service IDs that are operating on a specific date. Date must be in YYYYMMDD format.
+
+This endpoint:
+1. Checks the calendar to find services with matching weekday and date range
+2. Applies exceptions from calendar_dates (additions with type 1, removals with type 2)
+3. Returns the final list of active service IDs
+
+**Example:**
+```bash
+curl http://localhost:3000/services/on/20251119
+```
+
+**Example Response:**
+```json
+{
+  "date": "20251119",
+  "service_count": 45,
+  "service_ids": [
+    "121403",
+    "137519",
+    "140292",
+    "141113",
+    ...
+  ]
+}
+```
+
+**Error Response (400):**
+```json
+{
+  "error": "Invalid date format. Expected YYYYMMDD (e.g., 20251119)"
+}
+```
+
 ## Testing
 
 ### Manual Testing
@@ -310,6 +350,9 @@ curl http://localhost:3000/routes/100001
 
 # Trips
 curl http://localhost:3000/trips/347619649
+
+# Services on a date
+curl http://localhost:3000/services/on/20251119
 ```
 
 ### Using PowerShell
@@ -323,6 +366,7 @@ Invoke-WebRequest -Uri http://localhost:3000/shapes/10002005 | Select-Object -Ex
 Invoke-WebRequest -Uri http://localhost:3000/stops/1-100 | Select-Object -Expand Content
 Invoke-WebRequest -Uri http://localhost:3000/routes/100001 | Select-Object -Expand Content
 Invoke-WebRequest -Uri http://localhost:3000/trips/347619649 | Select-Object -Expand Content
+Invoke-WebRequest -Uri http://localhost:3000/services/on/20251119 | Select-Object -Expand Content
 ```
 
 ### Using a Browser
@@ -333,6 +377,7 @@ Simply navigate to:
 - `http://localhost:3000/stops/1-100`
 - `http://localhost:3000/routes/100001`
 - `http://localhost:3000/trips/347619649`
+- `http://localhost:3000/services/on/20251119`
 
 ## Configuration
 
@@ -384,6 +429,17 @@ The application reads standard GTFS files:
 - `trip_headsign`: Destination displayed to riders
 - Additional fields: `direction_id`, `block_id`, etc.
 
+**Calendar** (`calendar.txt`):
+- `service_id`: Unique identifier for the service
+- `monday` through `sunday`: Boolean flags for days of week
+- `start_date`: First date of service (YYYYMMDD)
+- `end_date`: Last date of service (YYYYMMDD)
+
+**Calendar Dates** (`calendar_dates.txt`):
+- `service_id`: Service identifier
+- `date`: Exception date (YYYYMMDD)
+- `exception_type`: 1 = service added, 2 = service removed
+
 ### GeoJSON Output
 Shape data is converted to GeoJSON format following the [RFC 7946](https://tools.ietf.org/html/rfc7946) specification:
 - Coordinates are in `[longitude, latitude]` order
@@ -391,7 +447,7 @@ Shape data is converted to GeoJSON format following the [RFC 7946](https://tools
 
 ## Future Enhancements
 
-- Additional GTFS data loading (stop_times, calendar, calendar_dates)
+- Additional GTFS data loading (stop_times)
 - Vehicle position simulation based on schedules
 - Real-time vehicle position endpoints
 - WebSocket support for live updates
