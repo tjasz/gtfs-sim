@@ -26,6 +26,33 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
 }
 
 /**
+ * Find the closest point on a shape to a given stop location
+ * @param {Array} shapePoints - Array of shape points with {lat, lon, distance}
+ * @param {number} stopLat - Stop latitude
+ * @param {number} stopLon - Stop longitude
+ * @returns {number} - Distance along shape to the closest point
+ */
+function findClosestPointOnShape(shapePoints, stopLat, stopLon) {
+  if (!shapePoints || shapePoints.length === 0) {
+    return 0;
+  }
+
+  let minDistance = Infinity;
+  let closestShapeDistance = 0;
+
+  // Check each shape point
+  for (const point of shapePoints) {
+    const dist = haversineDistance(stopLat, stopLon, point.lat, point.lon);
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestShapeDistance = point.distance;
+    }
+  }
+
+  return closestShapeDistance;
+}
+
+/**
  * In-memory database for GTFS data
  */
 class GTFSDatabase {
@@ -493,14 +520,26 @@ class GTFSDatabase {
           for (const [tripId, times] of stopTimes.entries()) {
             times.sort((a, b) => a.stop_sequence - b.stop_sequence);
             
-            // Calculate shape_dist_traveled for all stops for consistency
+            // Calculate shape_dist_traveled using the shape for accuracy
+            const trip = this.trips.get(tripId);
+            const shapePoints = trip?.shape_id ? this.shapes.get(trip.shape_id) : null;
+            
             for (let i = 0; i < times.length; i++) {
-              if (i === 0) {
+              const currStop = this.stops.get(times[i].stop_id);
+              
+              if (currStop && shapePoints && shapePoints.length > 0) {
+                // Find closest point on shape to this stop
+                times[i].shape_dist_traveled = findClosestPointOnShape(
+                  shapePoints,
+                  currStop.stop_lat,
+                  currStop.stop_lon
+                );
+              } else if (i === 0) {
+                // First stop defaults to 0
                 times[i].shape_dist_traveled = 0;
               } else {
+                // Fallback: calculate point-to-point distance from previous stop
                 const prevStop = this.stops.get(times[i - 1].stop_id);
-                const currStop = this.stops.get(times[i].stop_id);
-                
                 if (prevStop && currStop) {
                   const distFromPrev = haversineDistance(
                     prevStop.stop_lat, prevStop.stop_lon,
@@ -508,7 +547,6 @@ class GTFSDatabase {
                   );
                   times[i].shape_dist_traveled = times[i - 1].shape_dist_traveled + distFromPrev;
                 } else {
-                  // If stops not found, use previous distance
                   times[i].shape_dist_traveled = times[i - 1].shape_dist_traveled;
                 }
               }
