@@ -99,8 +99,8 @@
   z-index: 1;
 }
 
-/* Custom bus marker styling */
-.bus-marker {
+/* Custom vehicle marker styling */
+.vehicle-marker {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -108,13 +108,13 @@
   border: none;
 }
 
-.bus-icon {
+.vehicle-icon {
   font-size: 24px;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
   transition: transform 0.2s;
 }
 
-.bus-marker:hover .bus-icon {
+.vehicle-marker:hover .vehicle-icon {
   transform: scale(1.2);
 }
 

@@ -17,13 +17,30 @@ let DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Custom bus icon
-const busIcon = L.divIcon({
-  className: 'bus-marker',
-  html: '<div class="bus-icon">🚌</div>',
-  iconSize: [24, 24],
-  iconAnchor: [12, 12]
-});
+// Function to get icon based on route_type
+const getVehicleIcon = (routeType) => {
+  const iconMap = {
+    0: '🚊', // Tram, Streetcar, Light rail
+    1: '🚇', // Subway, Metro
+    2: '🚆', // Rail
+    3: '🚌', // Bus
+    4: '⛴️', // Ferry
+    5: '🚡', // Cable tram
+    6: '🚠', // Aerial lift
+    7: '🚞', // Funicular
+    11: '🚎', // Trolleybus
+    12: '🚝', // Monorail
+  };
+  
+  const emoji = iconMap[routeType] || '🚌'; // Default to bus
+  
+  return L.divIcon({
+    className: 'vehicle-marker',
+    html: `<div class="vehicle-icon">${emoji}</div>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
+  });
+};
 
 function App() {
   const [simulatedTime, setSimulatedTime] = useState(new Date());
@@ -63,7 +80,7 @@ function App() {
   useEffect(() => {
     if (!isPlaying) return;
 
-    const updateInterval = 100; // Update 10 times per second
+    const updateInterval = 500; // Update 1 time per second
     
     intervalRef.current = setInterval(() => {
       const now = Date.now();
@@ -124,11 +141,37 @@ function App() {
 
   // Custom point to layer function for vehicles
   const pointToLayer = (feature, latlng) => {
-    const marker = L.marker(latlng, { icon: busIcon });
-    
-    // Add popup with trip info
     const props = feature.properties;
-    let popupContent = `<strong>Trip ID:</strong> ${props.trip_id}<br/>`;
+    const routeType = props.route?.route_type ?? 3; // Default to bus if route info missing
+    const icon = getVehicleIcon(routeType);
+    const marker = L.marker(latlng, { icon });
+    
+    // Add popup with trip and route info
+    let popupContent = '<div style="font-size: 14px;">';
+    
+    // Route information
+    if (props.route) {
+      if (props.route.route_short_name || props.route.route_long_name) {
+        popupContent += '<strong>';
+        if (props.route.route_short_name) {
+          popupContent += `Route ${props.route.route_short_name}`;
+          if (props.route.route_long_name) {
+            popupContent += ': ';
+          }
+        }
+        if (props.route.route_long_name) {
+          popupContent += props.route.route_long_name;
+        }
+        popupContent += '</strong><br/>';
+      }
+      
+      if (props.route.route_id) {
+        popupContent += `<small>Route ID: ${props.route.route_id}</small><br/>`;
+      }
+    }
+    
+    popupContent += '<hr style="margin: 5px 0;">';
+    popupContent += `<strong>Trip ID:</strong> ${props.trip_id}<br/>`;
     popupContent += `<strong>Status:</strong> ${props.status}<br/>`;
     
     if (props.status === 'at_stop') {
@@ -138,7 +181,11 @@ function App() {
       popupContent += `<strong>To:</strong> ${props.to_stop_id}<br/>`;
     }
     
-    popupContent += `<strong>Distance:</strong> ${props.shape_dist_traveled?.toFixed(1)}m`;
+    if (props.shape_dist_traveled != null) {
+      popupContent += `<strong>Distance:</strong> ${props.shape_dist_traveled.toFixed(1)}m`;
+    }
+    
+    popupContent += '</div>';
     
     marker.bindPopup(popupContent);
     return marker;
@@ -175,7 +222,7 @@ function App() {
         </div>
         
         <div className="vehicle-count">
-          🚌 {vehicleCount} vehicles
+          {vehicleCount} vehicles
         </div>
       </div>
 
