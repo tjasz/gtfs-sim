@@ -43,7 +43,23 @@ const getVehicleIcon = (routeType) => {
 };
 
 function App() {
-  const [simulatedTime, setSimulatedTime] = useState(new Date());
+  // Get initial time from query parameter or use current time
+  const getInitialTime = () => {
+    const params = new URLSearchParams(window.location.search);
+    const startDate = params.get('startDate');
+    
+    if (startDate) {
+      const parsedDate = new Date(startDate);
+      // Check if valid date
+      if (!isNaN(parsedDate.getTime())) {
+        return parsedDate;
+      }
+    }
+    
+    return new Date();
+  };
+
+  const [simulatedTime, setSimulatedTime] = useState(getInitialTime());
   const [isPlaying, setIsPlaying] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [vehicles, setVehicles] = useState(null);
