@@ -59,7 +59,7 @@ class GTFSDatabase {
             lat: parseFloat(row.shape_pt_lat),
             lon: parseFloat(row.shape_pt_lon),
             sequence: parseInt(row.shape_pt_sequence),
-            distance: row.shape_dist_traveled ? parseFloat(row.shape_dist_traveled) : null
+            distance: null // Will be calculated for consistency
           };
 
           if (!shapes.has(shapeId)) {
@@ -72,19 +72,17 @@ class GTFSDatabase {
           for (const [shapeId, points] of shapes.entries()) {
             points.sort((a, b) => a.sequence - b.sequence);
             
-            // Calculate distances if missing
+            // Calculate distances for all points for consistency
             for (let i = 0; i < points.length; i++) {
-              if (points[i].distance === null || isNaN(points[i].distance)) {
-                if (i === 0) {
-                  points[i].distance = 0;
-                } else {
-                  const prevPoint = points[i - 1];
-                  const distFromPrev = haversineDistance(
-                    prevPoint.lat, prevPoint.lon,
-                    points[i].lat, points[i].lon
-                  );
-                  points[i].distance = prevPoint.distance + distFromPrev;
-                }
+              if (i === 0) {
+                points[i].distance = 0;
+              } else {
+                const prevPoint = points[i - 1];
+                const distFromPrev = haversineDistance(
+                  prevPoint.lat, prevPoint.lon,
+                  points[i].lat, points[i].lon
+                );
+                points[i].distance = prevPoint.distance + distFromPrev;
               }
             }
           }
@@ -478,7 +476,7 @@ class GTFSDatabase {
             arrival_time: row.arrival_time,
             departure_time: row.departure_time,
             stop_sequence: parseInt(row.stop_sequence),
-            shape_dist_traveled: row.shape_dist_traveled ? parseFloat(row.shape_dist_traveled) : null,
+            shape_dist_traveled: null, // Will be calculated for consistency
             timepoint: row.timepoint,
             stop_headsign: row.stop_headsign,
             pickup_type: row.pickup_type,
@@ -495,25 +493,23 @@ class GTFSDatabase {
           for (const [tripId, times] of stopTimes.entries()) {
             times.sort((a, b) => a.stop_sequence - b.stop_sequence);
             
-            // Calculate shape_dist_traveled if missing
+            // Calculate shape_dist_traveled for all stops for consistency
             for (let i = 0; i < times.length; i++) {
-              if (times[i].shape_dist_traveled === null || isNaN(times[i].shape_dist_traveled)) {
-                if (i === 0) {
-                  times[i].shape_dist_traveled = 0;
+              if (i === 0) {
+                times[i].shape_dist_traveled = 0;
+              } else {
+                const prevStop = this.stops.get(times[i - 1].stop_id);
+                const currStop = this.stops.get(times[i].stop_id);
+                
+                if (prevStop && currStop) {
+                  const distFromPrev = haversineDistance(
+                    prevStop.stop_lat, prevStop.stop_lon,
+                    currStop.stop_lat, currStop.stop_lon
+                  );
+                  times[i].shape_dist_traveled = times[i - 1].shape_dist_traveled + distFromPrev;
                 } else {
-                  const prevStop = this.stops.get(times[i - 1].stop_id);
-                  const currStop = this.stops.get(times[i].stop_id);
-                  
-                  if (prevStop && currStop) {
-                    const distFromPrev = haversineDistance(
-                      prevStop.stop_lat, prevStop.stop_lon,
-                      currStop.stop_lat, currStop.stop_lon
-                    );
-                    times[i].shape_dist_traveled = times[i - 1].shape_dist_traveled + distFromPrev;
-                  } else {
-                    // If stops not found, use previous distance
-                    times[i].shape_dist_traveled = times[i - 1].shape_dist_traveled;
-                  }
+                  // If stops not found, use previous distance
+                  times[i].shape_dist_traveled = times[i - 1].shape_dist_traveled;
                 }
               }
             }
