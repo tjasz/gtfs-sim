@@ -268,8 +268,13 @@ app.get('/health', (req, res) => {
  */
 async function startServer() {
   try {
+    // Get input folder from command line argument or use default
+    const inputFolder = process.argv[2] || 'puget_sound';
+    const inputDir = path.join(__dirname, '..', 'input', inputFolder);
+    
+    console.log(`Using GTFS data from: ${inputFolder}`);
+    
     // Load GTFS data
-    const inputDir = path.join(__dirname, '..', 'input', 'puget_sound');
     gtfsDB = await loadGTFSData(inputDir);
     
     // Start the server

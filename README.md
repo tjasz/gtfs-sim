@@ -63,6 +63,25 @@ npm start
 
 The server will start on `http://localhost:3000` by default.
 
+### Selecting Input Data
+
+You can specify which GTFS dataset to load by providing the folder name as an argument:
+
+```bash
+# Use Puget Sound data (default)
+npm start
+# or explicitly
+npm run start:puget
+
+# Use Pierce Transit data
+npm run start:pierce
+
+# Use custom folder
+node src/server.js my_custom_folder
+```
+
+The server looks for GTFS files in `input/<folder_name>/`.
+
 ## API Endpoints
 
 ### Health Check
@@ -506,7 +525,15 @@ PORT=8080 npm start
 ```
 
 ### GTFS Data Directory
-The application expects GTFS files to be in `input/puget_sound/`. To use a different directory, modify the `inputDir` path in `src/server.js`.
+The application expects GTFS files to be in subdirectories under `input/`. You can specify which dataset to load using a command-line argument:
+
+```bash
+node src/server.js <folder_name>
+```
+
+For example:
+- `input/puget_sound/` - Sound Transit consolidated puget sound (default)
+- `input/pierce_transit/` - Pierce Transit
 
 ## Data Format
 
@@ -572,7 +599,8 @@ Shape data is converted to GeoJSON format following the [RFC 7946](https://tools
 ### Server won't start
 - Ensure Node.js v18+ is installed: `node --version`
 - Check if port 3000 is already in use
-- Verify GTFS files exist in `input/puget_sound/`
+- Verify GTFS files exist in the specified input folder (default: `input/puget_sound/`)
+- Check that the folder name is spelled correctly when using a custom argument
 
 ### No shapes loaded
 - Check that `shapes.txt` exists in the input directory

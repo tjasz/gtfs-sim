@@ -6,7 +6,11 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
+    "start:puget": "node src/server.js puget_sound",
+    "start:pierce": "node src/server.js pierce_transit",
     "dev": "node --watch src/server.js",
+    "dev:puget": "node --watch src/server.js puget_sound",
+    "dev:pierce": "node --watch src/server.js pierce_transit",
     "test": "node --test src/**/*.test.js"
   },
   "keywords": ["gtfs", "transit", "simulation", "geojson"],
