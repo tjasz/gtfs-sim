@@ -3,6 +3,29 @@ import { parse } from 'csv-parse';
 import path from 'path';
 
 /**
+ * Calculate distance between two geographic points using Haversine formula
+ * @param {number} lat1 - Latitude of point 1
+ * @param {number} lon1 - Longitude of point 1
+ * @param {number} lat2 - Latitude of point 2
+ * @param {number} lon2 - Longitude of point 2
+ * @returns {number} Distance in meters
+ */
+function haversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371000; // Earth's radius in meters
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
+/**
  * In-memory database for GTFS data
  */
 class GTFSDatabase {
@@ -36,7 +59,7 @@ class GTFSDatabase {
             lat: parseFloat(row.shape_pt_lat),
             lon: parseFloat(row.shape_pt_lon),
             sequence: parseInt(row.shape_pt_sequence),
-            distance: parseFloat(row.shape_dist_traveled)
+            distance: row.shape_dist_traveled ? parseFloat(row.shape_dist_traveled) : null
           };
 
           if (!shapes.has(shapeId)) {
@@ -48,6 +71,22 @@ class GTFSDatabase {
           // Sort points by sequence for each shape
           for (const [shapeId, points] of shapes.entries()) {
             points.sort((a, b) => a.sequence - b.sequence);
+            
+            // Calculate distances if missing
+            for (let i = 0; i < points.length; i++) {
+              if (points[i].distance === null || isNaN(points[i].distance)) {
+                if (i === 0) {
+                  points[i].distance = 0;
+                } else {
+                  const prevPoint = points[i - 1];
+                  const distFromPrev = haversineDistance(
+                    prevPoint.lat, prevPoint.lon,
+                    points[i].lat, points[i].lon
+                  );
+                  points[i].distance = prevPoint.distance + distFromPrev;
+                }
+              }
+            }
           }
           
           this.shapes = shapes;
@@ -439,7 +478,7 @@ class GTFSDatabase {
             arrival_time: row.arrival_time,
             departure_time: row.departure_time,
             stop_sequence: parseInt(row.stop_sequence),
-            shape_dist_traveled: parseFloat(row.shape_dist_traveled),
+            shape_dist_traveled: row.shape_dist_traveled ? parseFloat(row.shape_dist_traveled) : null,
             timepoint: row.timepoint,
             stop_headsign: row.stop_headsign,
             pickup_type: row.pickup_type,
@@ -455,6 +494,29 @@ class GTFSDatabase {
           // Sort stop times by sequence for each trip
           for (const [tripId, times] of stopTimes.entries()) {
             times.sort((a, b) => a.stop_sequence - b.stop_sequence);
+            
+            // Calculate shape_dist_traveled if missing
+            for (let i = 0; i < times.length; i++) {
+              if (times[i].shape_dist_traveled === null || isNaN(times[i].shape_dist_traveled)) {
+                if (i === 0) {
+                  times[i].shape_dist_traveled = 0;
+                } else {
+                  const prevStop = this.stops.get(times[i - 1].stop_id);
+                  const currStop = this.stops.get(times[i].stop_id);
+                  
+                  if (prevStop && currStop) {
+                    const distFromPrev = haversineDistance(
+                      prevStop.stop_lat, prevStop.stop_lon,
+                      currStop.stop_lat, currStop.stop_lon
+                    );
+                    times[i].shape_dist_traveled = times[i - 1].shape_dist_traveled + distFromPrev;
+                  } else {
+                    // If stops not found, use previous distance
+                    times[i].shape_dist_traveled = times[i - 1].shape_dist_traveled;
+                  }
+                }
+              }
+            }
           }
           
           this.stopTimes = stopTimes;
