@@ -13,11 +13,17 @@
     "dev:pierce": "node --watch src/server.js pierce_transit",
     "test": "node --test src/**/*.test.js"
   },
-  "keywords": ["gtfs", "transit", "simulation", "geojson"],
+  "keywords": [
+    "gtfs",
+    "transit",
+    "simulation",
+    "geojson"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "csv-parse": "^5.5.3"
+    "@azure/storage-blob": "^12.29.1",
+    "csv-parse": "^5.5.3",
+    "express": "^4.18.2"
   }
 }

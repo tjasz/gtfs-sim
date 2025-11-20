@@ -655,6 +655,25 @@ Shape data is converted to GeoJSON format following the [RFC 7946](https://tools
 - Verify the CSV format is correct (comma-separated with headers)
 - Check server console logs for error messages
 
+## Deployment
+
+The application supports deployment to Azure App Service with automatic switching between local file system (development) and Azure Blob Storage (production).
+
+### Deployment Requirements
+
+- Azure Storage Account for hosting GTFS data files
+- Azure App Service for hosting the application
+
+For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
+### Quick Deployment Summary
+
+The application automatically detects the environment:
+- **Local**: Reads GTFS files from `input/` directory
+- **Azure**: Reads GTFS files from Azure Blob Storage (default: `gtfspugetsound/puget-sound`)
+
+No code changes required - simply deploy to Azure App Service and the app will automatically use Azure Blob Storage!
+
 ## License
 
 MIT

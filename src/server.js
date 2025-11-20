@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { loadGTFSData } from './gtfs-loader.js';
+import { createStorageProvider } from './storage-provider.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -272,14 +273,44 @@ app.get('/health', (req, res) => {
  */
 async function startServer() {
   try {
-    // Get input folder from command line argument or use default
-    const inputFolder = process.argv[2] || 'puget_sound';
-    const inputDir = path.join(__dirname, '..', 'input', inputFolder);
+    // Detect environment: Azure or local
+    const isAzure = process.env.WEBSITE_INSTANCE_ID !== undefined || process.env.USE_AZURE_STORAGE === 'true';
     
-    console.log(`Using GTFS data from: ${inputFolder}`);
+    let storageProvider;
+    
+    if (isAzure) {
+      // Production: Use Azure Blob Storage
+      console.log('Running in Azure environment - using Azure Blob Storage');
+      
+      const accountName = process.env.AZURE_STORAGE_ACCOUNT || 'gtfspugetsound';
+      const containerName = process.env.AZURE_STORAGE_CONTAINER || 'puget-sound';
+      const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+      
+      storageProvider = createStorageProvider({
+        type: 'azure',
+        accountName: accountName,
+        containerName: containerName,
+        connectionString: connectionString
+      });
+      
+      console.log(`Using Azure Storage: ${accountName}/${containerName}`);
+    } else {
+      // Local development: Use file system
+      console.log('Running in local environment - using file system');
+      
+      const inputFolder = process.argv[2] || 'puget_sound';
+      const inputDir = path.join(__dirname, '..', 'input', inputFolder);
+      
+      storageProvider = createStorageProvider({
+        type: 'local',
+        baseDir: inputDir
+      });
+      
+      console.log(`Using local GTFS data from: ${inputFolder}`);
+    }
     
     // Load GTFS data
-    gtfsDB = await loadGTFSData(inputDir);
+    gtfsDB = await loadGTFSData(storageProvider);
     
     // Start the server
     app.listen(PORT, () => {

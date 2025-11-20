@@ -1,6 +1,4 @@
-import fs from 'fs';
 import { parse } from 'csv-parse';
-import path from 'path';
 
 /**
  * Calculate distance between two geographic points using Haversine formula
@@ -105,7 +103,8 @@ function findClosestPointOnShape(shapePoints, stopLat, stopLon) {
  * In-memory database for GTFS data
  */
 class GTFSDatabase {
-  constructor() {
+  constructor(storageProvider) {
+    this.storageProvider = storageProvider;
     this.shapes = new Map(); // Map<shape_id, Array<{lat, lon, sequence, distance}>>
     this.stops = new Map(); // Map<stop_id, stop object>
     this.routes = new Map(); // Map<route_id, route object>
@@ -120,11 +119,12 @@ class GTFSDatabase {
    * Load shapes from shapes.txt file
    */
   async loadShapes(filePath) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const shapes = new Map();
       
-      fs.createReadStream(filePath)
-        .pipe(parse({
+      try {
+        const stream = await this.storageProvider.createReadStream(filePath);
+        stream.pipe(parse({
           columns: true,
           skip_empty_lines: true,
           trim: true
@@ -168,6 +168,9 @@ class GTFSDatabase {
           resolve();
         })
         .on('error', reject);
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
@@ -238,11 +241,12 @@ class GTFSDatabase {
    * Load stops from stops.txt file
    */
   async loadStops(filePath) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const stops = new Map();
       
-      fs.createReadStream(filePath)
-        .pipe(parse({
+      try {
+        const stream = await this.storageProvider.createReadStream(filePath);
+        stream.pipe(parse({
           columns: true,
           skip_empty_lines: true,
           trim: true
@@ -271,6 +275,9 @@ class GTFSDatabase {
           resolve();
         })
         .on('error', reject);
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
@@ -278,11 +285,12 @@ class GTFSDatabase {
    * Load routes from routes.txt file
    */
   async loadRoutes(filePath) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const routes = new Map();
       
-      fs.createReadStream(filePath)
-        .pipe(parse({
+      try {
+        const stream = await this.storageProvider.createReadStream(filePath);
+        stream.pipe(parse({
           columns: true,
           skip_empty_lines: true,
           trim: true
@@ -308,6 +316,9 @@ class GTFSDatabase {
           resolve();
         })
         .on('error', reject);
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
@@ -315,12 +326,13 @@ class GTFSDatabase {
    * Load trips from trips.txt file
    */
   async loadTrips(filePath) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const trips = new Map();
       const tripsByService = new Map();
       
-      fs.createReadStream(filePath)
-        .pipe(parse({
+      try {
+        const stream = await this.storageProvider.createReadStream(filePath);
+        stream.pipe(parse({
           columns: true,
           skip_empty_lines: true,
           trim: true
@@ -359,6 +371,9 @@ class GTFSDatabase {
           resolve();
         })
         .on('error', reject);
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
@@ -466,11 +481,12 @@ class GTFSDatabase {
    * Load calendar from calendar.txt file
    */
   async loadCalendar(filePath) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const calendar = new Map();
       
-      fs.createReadStream(filePath)
-        .pipe(parse({
+      try {
+        const stream = await this.storageProvider.createReadStream(filePath);
+        stream.pipe(parse({
           columns: true,
           skip_empty_lines: true,
           trim: true
@@ -495,6 +511,9 @@ class GTFSDatabase {
           resolve();
         })
         .on('error', reject);
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
@@ -503,11 +522,12 @@ class GTFSDatabase {
    * Structure: Map<date, Map<service_id, exception_type>>
    */
   async loadCalendarDates(filePath) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const calendarDates = new Map();
       
-      fs.createReadStream(filePath)
-        .pipe(parse({
+      try {
+        const stream = await this.storageProvider.createReadStream(filePath);
+        stream.pipe(parse({
           columns: true,
           skip_empty_lines: true,
           trim: true
@@ -528,6 +548,9 @@ class GTFSDatabase {
           resolve();
         })
         .on('error', reject);
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
@@ -535,11 +558,12 @@ class GTFSDatabase {
    * Load stop times from stop_times.txt file
    */
   async loadStopTimes(filePath) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const stopTimes = new Map();
       
-      fs.createReadStream(filePath)
-        .pipe(parse({
+      try {
+        const stream = await this.storageProvider.createReadStream(filePath);
+        stream.pipe(parse({
           columns: true,
           skip_empty_lines: true,
           trim: true
@@ -607,6 +631,9 @@ class GTFSDatabase {
           resolve();
         })
         .on('error', reject);
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
@@ -849,60 +876,32 @@ class GTFSDatabase {
 }
 
 /**
- * Load all GTFS data from the input directory
+ * Load all GTFS data using the provided storage provider
+ * @param {StorageProvider} storageProvider - Storage provider instance
  */
-export async function loadGTFSData(inputDir) {
-  const db = new GTFSDatabase();
+export async function loadGTFSData(storageProvider) {
+  const db = new GTFSDatabase(storageProvider);
   
   console.log('Loading GTFS data...');
   
-  const shapesPath = path.join(inputDir, 'shapes.txt');
-  if (fs.existsSync(shapesPath)) {
-    await db.loadShapes(shapesPath);
-  } else {
-    console.warn(`shapes.txt not found at ${shapesPath}`);
-  }
-
-  const stopsPath = path.join(inputDir, 'stops.txt');
-  if (fs.existsSync(stopsPath)) {
-    await db.loadStops(stopsPath);
-  } else {
-    console.warn(`stops.txt not found at ${stopsPath}`);
-  }
-
-  const routesPath = path.join(inputDir, 'routes.txt');
-  if (fs.existsSync(routesPath)) {
-    await db.loadRoutes(routesPath);
-  } else {
-    console.warn(`routes.txt not found at ${routesPath}`);
-  }
-
-  const tripsPath = path.join(inputDir, 'trips.txt');
-  if (fs.existsSync(tripsPath)) {
-    await db.loadTrips(tripsPath);
-  } else {
-    console.warn(`trips.txt not found at ${tripsPath}`);
-  }
-
-  const calendarPath = path.join(inputDir, 'calendar.txt');
-  if (fs.existsSync(calendarPath)) {
-    await db.loadCalendar(calendarPath);
-  } else {
-    console.warn(`calendar.txt not found at ${calendarPath}`);
-  }
-
-  const calendarDatesPath = path.join(inputDir, 'calendar_dates.txt');
-  if (fs.existsSync(calendarDatesPath)) {
-    await db.loadCalendarDates(calendarDatesPath);
-  } else {
-    console.warn(`calendar_dates.txt not found at ${calendarDatesPath}`);
-  }
-
-  const stopTimesPath = path.join(inputDir, 'stop_times.txt');
-  if (fs.existsSync(stopTimesPath)) {
-    await db.loadStopTimes(stopTimesPath);
-  } else {
-    console.warn(`stop_times.txt not found at ${stopTimesPath}`);
+  // List of GTFS files to load
+  const files = [
+    { name: 'shapes.txt', loader: (path) => db.loadShapes(path) },
+    { name: 'stops.txt', loader: (path) => db.loadStops(path) },
+    { name: 'routes.txt', loader: (path) => db.loadRoutes(path) },
+    { name: 'trips.txt', loader: (path) => db.loadTrips(path) },
+    { name: 'calendar.txt', loader: (path) => db.loadCalendar(path) },
+    { name: 'calendar_dates.txt', loader: (path) => db.loadCalendarDates(path) },
+    { name: 'stop_times.txt', loader: (path) => db.loadStopTimes(path) }
+  ];
+  
+  // Load each file if it exists
+  for (const file of files) {
+    if (await storageProvider.exists(file.name)) {
+      await file.loader(file.name);
+    } else {
+      console.warn(`${file.name} not found`);
+    }
   }
   
   console.log('GTFS data loaded successfully');
