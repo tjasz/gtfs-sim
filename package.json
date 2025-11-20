@@ -22,6 +22,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@azure/identity": "^4.13.0",
     "@azure/storage-blob": "^12.29.1",
     "csv-parse": "^5.5.3",
     "express": "^4.18.2"

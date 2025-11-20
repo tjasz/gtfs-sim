@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { BlobServiceClient } from '@azure/storage-blob';
+import { DefaultAzureCredential } from '@azure/identity';
 import { Readable } from 'stream';
 
 /**
@@ -50,19 +51,20 @@ class LocalStorageProvider extends StorageProvider {
  * Azure Blob Storage provider
  */
 class AzureBlobStorageProvider extends StorageProvider {
-  constructor(accountName, containerName, connectionString = null) {
+  constructor(accountName, containerName) {
     super();
     this.accountName = accountName;
     this.containerName = containerName;
     
-    // Use connection string if provided, otherwise use DefaultAzureCredential (for managed identity)
-    if (connectionString) {
-      this.blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
-    } else {
-      // Use anonymous access or public container
-      const accountUrl = `https://${accountName}.blob.core.windows.net`;
-      this.blobServiceClient = new BlobServiceClient(accountUrl);
-    }
+    // Use DefaultAzureCredential for authentication with managed identity
+    // This automatically tries multiple authentication methods in order:
+    // 1. Environment variables (for local development)
+    // 2. Managed Identity (for Azure deployment)
+    // 3. Azure CLI (for local development)
+    // 4. Other Azure authentication methods
+    const credential = new DefaultAzureCredential();
+    const accountUrl = `https://${accountName}.blob.core.windows.net`;
+    this.blobServiceClient = new BlobServiceClient(accountUrl, credential);
     
     this.containerClient = this.blobServiceClient.getContainerClient(containerName);
   }
@@ -98,15 +100,13 @@ class AzureBlobStorageProvider extends StorageProvider {
  * @param {string} config.baseDir - Base directory for local storage
  * @param {string} config.accountName - Azure storage account name
  * @param {string} config.containerName - Azure container name
- * @param {string} config.connectionString - Optional Azure connection string
  * @returns {StorageProvider}
  */
 export function createStorageProvider(config) {
   if (config.type === 'azure') {
     return new AzureBlobStorageProvider(
       config.accountName,
-      config.containerName,
-      config.connectionString
+      config.containerName
     );
   } else {
     return new LocalStorageProvider(config.baseDir);

@@ -279,18 +279,16 @@ async function startServer() {
     let storageProvider;
     
     if (isAzure) {
-      // Production: Use Azure Blob Storage
-      console.log('Running in Azure environment - using Azure Blob Storage');
+      // Production: Use Azure Blob Storage with Managed Identity
+      console.log('Running in Azure environment - using Azure Blob Storage with Managed Identity');
       
       const accountName = process.env.AZURE_STORAGE_ACCOUNT || 'gtfspugetsound';
       const containerName = process.env.AZURE_STORAGE_CONTAINER || 'puget-sound';
-      const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
       
       storageProvider = createStorageProvider({
         type: 'azure',
         accountName: accountName,
-        containerName: containerName,
-        connectionString: connectionString
+        containerName: containerName
       });
       
       console.log(`Using Azure Storage: ${accountName}/${containerName}`);
