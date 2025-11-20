@@ -152,6 +152,9 @@ function VehicleMarkers({ vehicleData }) {
 }
 
 function App() {
+  // Get API base URL from environment variable
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+  
   // Get initial time from query parameter or use current time
   const getInitialTime = () => {
     const params = new URLSearchParams(window.location.search);
@@ -187,7 +190,7 @@ function App() {
       // Format datetime as ISO 8601 without timezone
       // Sweden locale format is YYYY-MM-DD HH:MM:SS
       const isoString = datetime.toLocaleString('sv').replace(' ', 'T');
-      const response = await fetch(`/api/vehicles/at/${isoString}`);
+      const response = await fetch(`${API_BASE_URL}/vehicles/at/${isoString}`);
       
       if (!response.ok) {
         console.error('Failed to fetch vehicles:', response.statusText);

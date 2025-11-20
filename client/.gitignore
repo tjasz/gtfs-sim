@@ -2,4 +2,12 @@ node_modules
 dist
 .DS_Store
 *.log
-.env
+
+# Local environment overrides (don't commit local .env)
+.env.local
+.env.*.local
+
+# Keep template and default environment files
+# .env.example
+# .env.development
+# .env.production

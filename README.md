@@ -657,22 +657,60 @@ Shape data is converted to GeoJSON format following the [RFC 7946](https://tools
 
 ## Deployment
 
-The application supports deployment to Azure App Service with automatic switching between local file system (development) and Azure Blob Storage (production).
+The application consists of two parts that can be deployed independently:
 
-### Deployment Requirements
+### Backend Deployment (Azure App Service)
 
+The backend API supports automatic switching between local file system (development) and Azure Blob Storage (production).
+
+**Requirements:**
 - Azure Storage Account for hosting GTFS data files
-- Azure App Service for hosting the application
+- Azure App Service for hosting the backend API
+- System-Assigned Managed Identity configured
 
-For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
-
-### Quick Deployment Summary
-
-The application automatically detects the environment:
+**Quick Summary:**
 - **Local**: Reads GTFS files from `input/` directory
-- **Azure**: Reads GTFS files from Azure Blob Storage (default: `gtfspugetsound/puget-sound`)
+- **Azure**: Reads GTFS files from Azure Blob Storage using Managed Identity
 
-No code changes required - simply deploy to Azure App Service and the app will automatically use Azure Blob Storage!
+For detailed backend deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
+### Frontend Deployment (GitHub Pages)
+
+The React frontend can be deployed to GitHub Pages with automatic builds via GitHub Actions.
+
+**Requirements:**
+- GitHub repository with Pages enabled
+- Backend API deployed and accessible
+
+**Quick Summary:**
+- Configure backend URL in `.env.production`
+- Push to `main` branch for automatic deployment
+- Or use `npm run deploy` for manual deployment
+
+For detailed frontend deployment instructions, see [FRONTEND_DEPLOYMENT.md](FRONTEND_DEPLOYMENT.md).
+
+### Complete Deployment Architecture
+
+```
+┌─────────────────────┐
+│   GitHub Pages      │
+│   (Frontend)        │  ← https://username.github.io/gtfs-sim/
+│   React + Leaflet   │
+└──────────┬──────────┘
+           │ HTTPS API Requests
+           ▼
+┌─────────────────────┐
+│  Azure App Service  │
+│   (Backend API)     │  ← https://your-app.azurewebsites.net
+│   Express + Node.js │
+└──────────┬──────────┘
+           │ Managed Identity
+           ▼
+┌─────────────────────┐
+│  Azure Blob Storage │
+│   (GTFS Data)       │
+└─────────────────────┘
+```
 
 ## License
 

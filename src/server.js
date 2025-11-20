@@ -12,8 +12,29 @@ const PORT = process.env.PORT || 3000;
 
 // Enable CORS for frontend
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  // Allow requests from development and production frontends
+  const allowedOrigins = [
+    'http://localhost:5173',  // Vite dev server
+    'http://localhost:3000',  // Alternative dev port
+    // Add your GitHub Pages URL here:
+    // 'https://username.github.io'
+  ];
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin) || origin === undefined) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+  } else {
+    res.header('Access-Control-Allow-Origin', '*'); // Allow all origins (less secure but more flexible)
+  }
+  
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  
   next();
 });
 
