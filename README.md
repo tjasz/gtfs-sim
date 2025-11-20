@@ -416,7 +416,7 @@ curl http://localhost:3000/services/on/20251119
 ```
 GET /vehicles/at/:datetime
 ```
-Returns real-time vehicle positions at a specific date and time as GeoJSON Point features. DateTime must be in ISO 8601 format without timezone (agency-local time).
+Returns real-time vehicle positions at a specific date and time as a map of trip IDs to GeoJSON Point features. DateTime must be in ISO 8601 format without timezone (agency-local time).
 
 This endpoint:
 1. Gets trips operating on the given date
@@ -435,16 +435,19 @@ curl http://localhost:3000/vehicles/at/2025-11-19T09:27:00
 **Example Response:**
 ```json
 {
-  "type": "FeatureCollection",
-  "properties": {
-    "datetime": "2025-11-19T09:27:00",
-    "vehicle_count": 342
-  },
-  "features": [
-    {
+  "datetime": "2025-11-19T09:27:00",
+  "vehicle_count": 342,
+  "vehicles": {
+    "347619649": {
       "type": "Feature",
       "properties": {
         "trip_id": "347619649",
+        "route": {
+          "route_id": "100001",
+          "route_short_name": "1",
+          "route_long_name": "Kinnear - Downtown Seattle",
+          "route_type": 3
+        },
         "stop_id": "1-100",
         "stop_name": "1st Ave & Spring St",
         "shape_dist_traveled": 5262.0,
@@ -455,10 +458,16 @@ curl http://localhost:3000/vehicles/at/2025-11-19T09:27:00
         "coordinates": [-122.336533, 47.605137]
       }
     },
-    {
+    "347619659": {
       "type": "Feature",
       "properties": {
         "trip_id": "347619659",
+        "route": {
+          "route_id": "100002",
+          "route_short_name": "2",
+          "route_long_name": "Queen Anne - Downtown Seattle",
+          "route_type": 3
+        },
         "shape_dist_traveled": 12543.7,
         "from_stop_id": "1-101",
         "to_stop_id": "1-102",
@@ -469,7 +478,7 @@ curl http://localhost:3000/vehicles/at/2025-11-19T09:27:00
         "coordinates": [-122.334123, 47.606542]
       }
     }
-  ]
+  }
 }
 ```
 
