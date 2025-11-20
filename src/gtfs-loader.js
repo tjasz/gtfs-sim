@@ -293,7 +293,7 @@ class GTFSDatabase {
             agency_id: row.agency_id,
             route_short_name: row.route_short_name,
             route_long_name: row.route_long_name,
-            route_type: row.route_type,
+            route_type: parseInt(row.route_type),
             route_desc: row.route_desc,
             route_url: row.route_url,
             route_color: row.route_color,
@@ -644,7 +644,7 @@ class GTFSDatabase {
   /**
    * Get vehicle positions at a specific date and time
    * @param {Date} datetime - JavaScript Date object
-   * @returns {Array} - Array of GeoJSON Point features
+   * @returns {Object} - Map of trip_id to GeoJSON Point feature
    */
   getVehiclePositions(datetime) {
     // Get date string in YYYYMMDD format
@@ -658,7 +658,7 @@ class GTFSDatabase {
     
     // Get trips operating on this date
     const tripIds = this.getTripsOnDate(dateString);
-    const vehicles = [];
+    const vehicles = {};
     
     for (const tripId of tripIds) {
       const stopTimes = this.stopTimes.get(tripId);
@@ -793,7 +793,7 @@ class GTFSDatabase {
       }
       
       if (position) {
-        vehicles.push(position);
+        vehicles[tripId] = position;
       }
     }
     

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
 
@@ -42,6 +42,115 @@ const getVehicleIcon = (routeType) => {
   });
 };
 
+// Helper function to create popup content
+const createPopupContent = (props) => {
+  let content = '<div style="font-size: 14px;">';
+  
+  // Route information
+  if (props.route) {
+    if (props.route.route_short_name || props.route.route_long_name) {
+      content += '<strong>';
+      if (props.route.route_short_name) {
+        content += `Route ${props.route.route_short_name}`;
+        if (props.route.route_long_name) {
+          content += ': ';
+        }
+      }
+      if (props.route.route_long_name) {
+        content += props.route.route_long_name;
+      }
+      content += '</strong><br/>';
+    }
+    
+    if (props.route.route_id) {
+      content += `<small>Route ID: ${props.route.route_id}</small><br/>`;
+    }
+  }
+  
+  content += '<hr style="margin: 5px 0;">';
+  content += `<strong>Trip ID:</strong> ${props.trip_id}<br/>`;
+  content += `<strong>Status:</strong> ${props.status}<br/>`;
+  
+  if (props.status === 'at_stop') {
+    content += `<strong>Stop:</strong> ${props.stop_name}<br/>`;
+  } else if (props.status === 'in_transit') {
+    content += `<strong>From:</strong> ${props.from_stop_id}<br/>`;
+    content += `<strong>To:</strong> ${props.to_stop_id}<br/>`;
+  }
+  
+  if (props.shape_dist_traveled != null) {
+    content += `<strong>Distance:</strong> ${props.shape_dist_traveled.toFixed(1)}m`;
+  }
+  
+  content += '</div>';
+  return content;
+};
+
+// Component to manage vehicle markers
+function VehicleMarkers({ vehicleData }) {
+  const map = useMap();
+  const markersRef = useRef({});
+
+  useEffect(() => {
+    const currentMarkers = markersRef.current;
+    const newVehicles = vehicleData || {};
+    
+    console.log('Updating markers:', {
+      currentMarkerCount: Object.keys(currentMarkers).length,
+      newVehicleCount: Object.keys(newVehicles).length
+    });
+    
+    // Remove markers for trips that no longer exist
+    Object.keys(currentMarkers).forEach(tripId => {
+      if (!newVehicles[tripId]) {
+        map.removeLayer(currentMarkers[tripId]);
+        delete currentMarkers[tripId];
+      }
+    });
+    
+    // Add or update markers
+    Object.entries(newVehicles).forEach(([tripId, feature]) => {
+      const props = feature.properties;
+      const [lon, lat] = feature.geometry.coordinates;
+      const latlng = L.latLng(lat, lon);
+      
+      if (currentMarkers[tripId]) {
+        // Update existing marker position
+        currentMarkers[tripId].setLatLng(latlng);
+        
+        // Update popup content
+        const popupContent = createPopupContent(props);
+        currentMarkers[tripId].getPopup().setContent(popupContent);
+      } else {
+        // Create new marker
+        const routeType = props.route?.route_type ?? 3;
+        const icon = getVehicleIcon(routeType);
+        const marker = L.marker(latlng, { icon });
+        
+        const popupContent = createPopupContent(props);
+        marker.bindPopup(popupContent);
+        
+        marker.addTo(map);
+        currentMarkers[tripId] = marker;
+      }
+    });
+    
+    // Update ref
+    markersRef.current = currentMarkers;
+  }, [vehicleData, map]);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(markersRef.current).forEach(marker => {
+        map.removeLayer(marker);
+      });
+    };
+  }, [map]);
+  
+  return null;
+}
+
 function App() {
   // Get initial time from query parameter or use current time
   const getInitialTime = () => {
@@ -62,10 +171,11 @@ function App() {
   const [simulatedTime, setSimulatedTime] = useState(getInitialTime());
   const [isPlaying, setIsPlaying] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
-  const [vehicles, setVehicles] = useState(null);
+  const [vehicleData, setVehicleData] = useState({});
   const [vehicleCount, setVehicleCount] = useState(0);
   const intervalRef = useRef(null);
   const lastUpdateRef = useRef(Date.now());
+  const mapRef = useRef(null);
 
   // Default map center (Seattle area)
   const defaultCenter = [47.6062, -122.3321];
@@ -85,8 +195,8 @@ function App() {
       }
       
       const data = await response.json();
-      setVehicles(data);
-      setVehicleCount(data.features?.length || 0);
+      setVehicleData(data.vehicles || {});
+      setVehicleCount(data.vehicle_count || 0);
     } catch (error) {
       console.error('Error fetching vehicles:', error);
     }
@@ -155,58 +265,6 @@ function App() {
     });
   };
 
-  // Custom point to layer function for vehicles
-  const pointToLayer = (feature, latlng) => {
-    const props = feature.properties;
-    const routeType = props.route?.route_type ?? 3; // Default to bus if route info missing
-    const icon = getVehicleIcon(routeType);
-    const marker = L.marker(latlng, { icon });
-    
-    // Add popup with trip and route info
-    let popupContent = '<div style="font-size: 14px;">';
-    
-    // Route information
-    if (props.route) {
-      if (props.route.route_short_name || props.route.route_long_name) {
-        popupContent += '<strong>';
-        if (props.route.route_short_name) {
-          popupContent += `Route ${props.route.route_short_name}`;
-          if (props.route.route_long_name) {
-            popupContent += ': ';
-          }
-        }
-        if (props.route.route_long_name) {
-          popupContent += props.route.route_long_name;
-        }
-        popupContent += '</strong><br/>';
-      }
-      
-      if (props.route.route_id) {
-        popupContent += `<small>Route ID: ${props.route.route_id}</small><br/>`;
-      }
-    }
-    
-    popupContent += '<hr style="margin: 5px 0;">';
-    popupContent += `<strong>Trip ID:</strong> ${props.trip_id}<br/>`;
-    popupContent += `<strong>Status:</strong> ${props.status}<br/>`;
-    
-    if (props.status === 'at_stop') {
-      popupContent += `<strong>Stop:</strong> ${props.stop_name}<br/>`;
-    } else if (props.status === 'in_transit') {
-      popupContent += `<strong>From:</strong> ${props.from_stop_id}<br/>`;
-      popupContent += `<strong>To:</strong> ${props.to_stop_id}<br/>`;
-    }
-    
-    if (props.shape_dist_traveled != null) {
-      popupContent += `<strong>Distance:</strong> ${props.shape_dist_traveled.toFixed(1)}m`;
-    }
-    
-    popupContent += '</div>';
-    
-    marker.bindPopup(popupContent);
-    return marker;
-  };
-
   return (
     <div className="app">
       <div className="controls">
@@ -247,19 +305,14 @@ function App() {
         zoom={defaultZoom} 
         className="map-container"
         zoomControl={true}
+        ref={mapRef}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
-        {vehicles && vehicles.features && vehicles.features.length > 0 && (
-          <GeoJSON 
-            key={JSON.stringify(vehicles)} 
-            data={vehicles}
-            pointToLayer={pointToLayer}
-          />
-        )}
+        <VehicleMarkers vehicleData={vehicleData} />
       </MapContainer>
     </div>
   );

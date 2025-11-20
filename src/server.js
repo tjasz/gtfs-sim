@@ -215,7 +215,7 @@ app.get('/services/on/:date', (req, res) => {
 
 /**
  * GET /vehicles/at/:datetime
- * Returns vehicle positions at a specific date and time
+ * Returns vehicle positions at a specific date and time as a map of trip_id to position
  * DateTime format: ISO 8601 without timezone (e.g., 2025-11-19T09:27:00)
  */
 app.get('/vehicles/at/:datetime', (req, res) => {
@@ -241,12 +241,9 @@ app.get('/vehicles/at/:datetime', (req, res) => {
     const vehicles = gtfsDB.getVehiclePositions(datetime);
     
     res.json({
-      type: 'FeatureCollection',
-      properties: {
-        datetime: datetimeStr,
-        vehicle_count: vehicles.length
-      },
-      features: vehicles
+      datetime: datetimeStr,
+      vehicle_count: Object.keys(vehicles).length,
+      vehicles: vehicles
     });
   } catch (error) {
     console.error('Error fetching vehicle positions:', error);
