@@ -161,7 +161,7 @@ function VehicleMarkers({ vehicleData }) {
 
 // Route type categories and their IDs
 const ROUTE_CATEGORIES = {
-  'intercity': ['51', '52', '53', '54', '55', '56', '57', '58', '59', '60'],
+  'intercity': ['51-60'],
   'commuter': ['SNDR_EV', 'SNDR_TL'],
   'lightrail': ['100479', '2LINE'],
   'monorail': ['SCM'],
