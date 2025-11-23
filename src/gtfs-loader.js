@@ -769,6 +769,7 @@ class GTFSDatabase {
               type: 'Feature',
               properties: {
                 trip_id: tripId,
+                trip_headsign: trip ? trip.trip_headsign : null,
                   route: {
                     route_id: route ? route.route_id : null,
                     route_short_name: route ? route.route_short_name : null,
@@ -839,13 +840,16 @@ class GTFSDatabase {
               const lat = beforePoint.lat + (afterPoint.lat - beforePoint.lat) * distRatio;
               const lon = beforePoint.lon + (afterPoint.lon - beforePoint.lon) * distRatio;
               
-              // Get route information
+              // Get route information and stop names
               const route = trip ? this.routes.get(trip.route_id) : null;
+              const fromStopData = this.stops.get(fromStop.stop_id);
+              const toStopData = this.stops.get(toStop.stop_id);
               
               position = {
                 type: 'Feature',
                 properties: {
                   trip_id: tripId,
+                  trip_headsign: trip ? trip.trip_headsign : null,
                   route: {
                     route_id: route ? route.route_id : null,
                     route_short_name: route ? route.route_short_name : null,
@@ -854,7 +858,9 @@ class GTFSDatabase {
                   },
                   shape_dist_traveled: expectedDistance,
                   from_stop_id: fromStop.stop_id,
+                  from_stop_name: fromStopData ? fromStopData.stop_name : null,
                   to_stop_id: toStop.stop_id,
+                  to_stop_name: toStopData ? toStopData.stop_name : null,
                   status: 'in_transit'
                 },
                 geometry: {
