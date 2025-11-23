@@ -192,6 +192,22 @@
   user-select: none;
 }
 
+.filter-checkbox-disabled {
+  opacity: 0.6;
+  cursor: not-allowed !important;
+  border-top: 1px solid #e0e0e0;
+  margin-top: 8px;
+  padding-top: 12px;
+}
+
+.filter-checkbox-disabled:hover {
+  background: transparent !important;
+}
+
+.filter-checkbox-disabled input[type="checkbox"] {
+  cursor: not-allowed;
+}
+
 .map-container {
   width: 100%;
   height: 100%;

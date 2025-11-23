@@ -190,6 +190,7 @@ function App() {
   const [vehicleData, setVehicleData] = useState({});
   const [vehicleCount, setVehicleCount] = useState(0);
   const [selectedRouteTypes, setSelectedRouteTypes] = useState(new Set(Object.keys(ROUTE_CATEGORIES)));
+  const [includeOtherRoutes, setIncludeOtherRoutes] = useState(true);
   const [showRouteFilter, setShowRouteFilter] = useState(false);
   const intervalRef = useRef(null);
   const lastUpdateRef = useRef(Date.now());
@@ -207,16 +208,22 @@ function App() {
       // Sweden locale format is YYYY-MM-DD HH:MM:SS
       const isoString = datetime.toLocaleString('sv').replace(' ', 'T');
       
-      // Build route IDs from selected categories
-      const routeIds = [];
-      selectedRouteTypes.forEach(categoryName => {
-        routeIds.push(...ROUTE_CATEGORIES[categoryName]);
-      });
-      
-      // Add routes parameter if any categories are selected
-      const url = routeIds.length > 0 
-        ? `${API_BASE_URL}/vehicles/at/${isoString}?routes=${routeIds.join(',')}`
-        : `${API_BASE_URL}/vehicles/at/${isoString}`;
+      // If "All Other Routes" is selected, don't filter by routes
+      let url;
+      if (includeOtherRoutes) {
+        url = `${API_BASE_URL}/vehicles/at/${isoString}`;
+      } else {
+        // Build route IDs from selected categories
+        const routeIds = [];
+        selectedRouteTypes.forEach(categoryName => {
+          routeIds.push(...ROUTE_CATEGORIES[categoryName]);
+        });
+        
+        // Add routes parameter if any categories are selected
+        url = routeIds.length > 0 
+          ? `${API_BASE_URL}/vehicles/at/${isoString}?routes=${routeIds.join(',')}`
+          : `${API_BASE_URL}/vehicles/at/${isoString}`;
+      }
       
       const response = await fetch(url);
       
@@ -274,7 +281,7 @@ function App() {
   // Initialize with current vehicles
   useEffect(() => {
     fetchVehicles(simulatedTime);
-  }, [selectedRouteTypes]);
+  }, [selectedRouteTypes, includeOtherRoutes]);
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
@@ -321,10 +328,12 @@ function App() {
 
   const handleSelectAllRoutes = () => {
     setSelectedRouteTypes(new Set(Object.keys(ROUTE_CATEGORIES)));
+    setIncludeOtherRoutes(true);
   };
 
   const handleDeselectAllRoutes = () => {
     setSelectedRouteTypes(new Set());
+    setIncludeOtherRoutes(false);
   };
 
   return (
@@ -367,7 +376,7 @@ function App() {
             onClick={() => setShowRouteFilter(!showRouteFilter)}
             title="Filter by route type"
           >
-            🚆 Filter ({selectedRouteTypes.size}/{Object.keys(ROUTE_CATEGORIES).length})
+            🚆 Filter ({includeOtherRoutes ? 'All' : `${selectedRouteTypes.size}/${Object.keys(ROUTE_CATEGORIES).length}`})
           </button>
           
           {showRouteFilter && (
@@ -389,6 +398,14 @@ function App() {
                   <span>{categoryName}</span>
                 </label>
               ))}
+              <label className="filter-checkbox filter-checkbox-disabled">
+                <input
+                  type="checkbox"
+                  checked={includeOtherRoutes}
+                  disabled
+                />
+                <span>All Other Routes</span>
+              </label>
             </div>
           )}
         </div>
