@@ -135,7 +135,7 @@ class GTFSDatabase {
             lat: parseFloat(row.shape_pt_lat),
             lon: parseFloat(row.shape_pt_lon),
             sequence: parseInt(row.shape_pt_sequence),
-            distance: null // Will be calculated for consistency
+            distance: row.shape_dist_traveled ? parseFloat(row.shape_dist_traveled) : null
           };
 
           if (!shapes.has(shapeId)) {
@@ -148,17 +148,24 @@ class GTFSDatabase {
           for (const [shapeId, points] of shapes.entries()) {
             points.sort((a, b) => a.sequence - b.sequence);
             
-            // Calculate distances for all points for consistency
-            for (let i = 0; i < points.length; i++) {
-              if (i === 0) {
-                points[i].distance = 0;
-              } else {
-                const prevPoint = points[i - 1];
-                const distFromPrev = haversineDistance(
-                  prevPoint.lat, prevPoint.lon,
-                  points[i].lat, points[i].lon
-                );
-                points[i].distance = prevPoint.distance + distFromPrev;
+            // Check if any distances are missing or zero (except first point)
+            const needsCalculation = points.some((p, i) => 
+              i > 0 && (p.distance === null || p.distance === 0)
+            );
+            
+            if (needsCalculation) {
+              // Calculate distances for all points
+              for (let i = 0; i < points.length; i++) {
+                if (i === 0) {
+                  points[i].distance = 0;
+                } else {
+                  const prevPoint = points[i - 1];
+                  const distFromPrev = haversineDistance(
+                    prevPoint.lat, prevPoint.lon,
+                    points[i].lat, points[i].lon
+                  );
+                  points[i].distance = prevPoint.distance + distFromPrev;
+                }
               }
             }
           }
@@ -576,7 +583,7 @@ class GTFSDatabase {
             arrival_time: row.arrival_time,
             departure_time: row.departure_time,
             stop_sequence: parseInt(row.stop_sequence),
-            shape_dist_traveled: null, // Will be calculated for consistency
+            shape_dist_traveled: row.shape_dist_traveled ? parseFloat(row.shape_dist_traveled) : null,
             timepoint: row.timepoint,
             stop_headsign: row.stop_headsign,
             pickup_type: row.pickup_type,
@@ -593,34 +600,45 @@ class GTFSDatabase {
           for (const [tripId, times] of stopTimes.entries()) {
             times.sort((a, b) => a.stop_sequence - b.stop_sequence);
             
-            // Calculate shape_dist_traveled using the shape for accuracy
+            // Check if any distances are missing or zero (except first stop which should be 0)
+            const needsCalculation = times.some((t, i) => 
+              (i === 0 && t.shape_dist_traveled !== 0 && t.shape_dist_traveled !== null) ? false :
+              (t.shape_dist_traveled === null || (i > 0 && t.shape_dist_traveled === 0))
+            );
+            
+            // Also check if corresponding shape needs calculation
             const trip = this.trips.get(tripId);
             const shapePoints = trip?.shape_id ? this.shapes.get(trip.shape_id) : null;
+            const shapeNeedsCalculation = shapePoints ? 
+              shapePoints.some((p, i) => i > 0 && (p.distance === null || p.distance === 0)) : false;
             
-            for (let i = 0; i < times.length; i++) {
-              const currStop = this.stops.get(times[i].stop_id);
-              
-              if (currStop && shapePoints && shapePoints.length > 0) {
-                // Find closest point on shape to this stop
-                times[i].shape_dist_traveled = findClosestPointOnShape(
-                  shapePoints,
-                  currStop.stop_lat,
-                  currStop.stop_lon
-                );
-              } else if (i === 0) {
-                // First stop defaults to 0
-                times[i].shape_dist_traveled = 0;
-              } else {
-                // Fallback: calculate point-to-point distance from previous stop
-                const prevStop = this.stops.get(times[i - 1].stop_id);
-                if (prevStop && currStop) {
-                  const distFromPrev = haversineDistance(
-                    prevStop.stop_lat, prevStop.stop_lon,
-                    currStop.stop_lat, currStop.stop_lon
+            if (needsCalculation || shapeNeedsCalculation) {
+              // Calculate shape_dist_traveled using the shape for accuracy
+              for (let i = 0; i < times.length; i++) {
+                const currStop = this.stops.get(times[i].stop_id);
+                
+                if (currStop && shapePoints && shapePoints.length > 0) {
+                  // Find closest point on shape to this stop
+                  times[i].shape_dist_traveled = findClosestPointOnShape(
+                    shapePoints,
+                    currStop.stop_lat,
+                    currStop.stop_lon
                   );
-                  times[i].shape_dist_traveled = times[i - 1].shape_dist_traveled + distFromPrev;
+                } else if (i === 0) {
+                  // First stop defaults to 0
+                  times[i].shape_dist_traveled = 0;
                 } else {
-                  times[i].shape_dist_traveled = times[i - 1].shape_dist_traveled;
+                  // Fallback: calculate point-to-point distance from previous stop
+                  const prevStop = this.stops.get(times[i - 1].stop_id);
+                  if (prevStop && currStop) {
+                    const distFromPrev = haversineDistance(
+                      prevStop.stop_lat, prevStop.stop_lon,
+                      currStop.stop_lat, currStop.stop_lon
+                    );
+                    times[i].shape_dist_traveled = times[i - 1].shape_dist_traveled + distFromPrev;
+                  } else {
+                    times[i].shape_dist_traveled = times[i - 1].shape_dist_traveled;
+                  }
                 }
               }
             }
