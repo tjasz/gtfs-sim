@@ -8,6 +8,13 @@ import L from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
+function toTitleCase(str) {
+  return str.replace(
+    /\w\S*/g,
+    text => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
+  );
+}
+
 let DefaultIcon = L.icon({
   iconUrl: icon,
   shadowUrl: iconShadow,
@@ -184,13 +191,45 @@ function App() {
     return new Date();
   };
 
+  // Get initial route selection from query parameter
+  const getInitialRouteSelection = () => {
+    const params = new URLSearchParams(window.location.search);
+    const routesParam = params.get('routes');
+    console.log(routesParam);
+    
+    if (routesParam) {
+      // Parse comma-separated route category names
+      const categoryNames = routesParam.split(',').map(name => toTitleCase(name.trim()));
+      
+      // Filter to only include valid category names
+      const validCategories = categoryNames.filter(name => 
+        Object.keys(ROUTE_CATEGORIES).includes(name)
+      );
+      
+      if (validCategories.length > 0) {
+        return {
+          selectedRouteTypes: new Set(validCategories),
+          includeOtherRoutes: false
+        };
+      }
+    }
+    
+    // Default: all categories selected
+    return {
+      selectedRouteTypes: new Set(Object.keys(ROUTE_CATEGORIES)),
+      includeOtherRoutes: true
+    };
+  };
+
+  const initialRouteSelection = getInitialRouteSelection();
+
   const [simulatedTime, setSimulatedTime] = useState(getInitialTime());
   const [isPlaying, setIsPlaying] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [vehicleData, setVehicleData] = useState({});
   const [vehicleCount, setVehicleCount] = useState(0);
-  const [selectedRouteTypes, setSelectedRouteTypes] = useState(new Set(Object.keys(ROUTE_CATEGORIES)));
-  const [includeOtherRoutes, setIncludeOtherRoutes] = useState(true);
+  const [selectedRouteTypes, setSelectedRouteTypes] = useState(initialRouteSelection.selectedRouteTypes);
+  const [includeOtherRoutes, setIncludeOtherRoutes] = useState(initialRouteSelection.includeOtherRoutes);
   const [showRouteFilter, setShowRouteFilter] = useState(false);
   const intervalRef = useRef(null);
   const lastUpdateRef = useRef(Date.now());
