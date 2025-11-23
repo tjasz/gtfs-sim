@@ -1,0 +1,2 @@
+TODO
+- handle after-midnight stop times. All vehicles disappear at midnight in current implementaion.
