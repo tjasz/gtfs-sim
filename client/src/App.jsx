@@ -151,6 +151,16 @@ function VehicleMarkers({ vehicleData }) {
   return null;
 }
 
+// Route type categories and their IDs
+const ROUTE_CATEGORIES = {
+  'Intercity Rail': ['51', '52', '53', '54', '55', '56', '57', '58', '59', '60'],
+  'Commuter Rail': ['SNDR_EV', 'SNDR_TL'],
+  'Light Rail': ['100479', '2LINE'],
+  'Monorail': ['SCM'],
+  'Streetcar': ['TLINE', '100340', '102638'],
+  'Bus Rapid Transit': ['100512', '102548', '102576', '102581', '102615', '102619', '102745', '102736', '701', '702', '703']
+};
+
 function App() {
   // Get API base URL from environment variable
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -176,6 +186,8 @@ function App() {
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [vehicleData, setVehicleData] = useState({});
   const [vehicleCount, setVehicleCount] = useState(0);
+  const [selectedRouteTypes, setSelectedRouteTypes] = useState(new Set(Object.keys(ROUTE_CATEGORIES)));
+  const [showRouteFilter, setShowRouteFilter] = useState(false);
   const intervalRef = useRef(null);
   const lastUpdateRef = useRef(Date.now());
   const lastVehicleUpdateTimeRef = useRef(null);
@@ -191,7 +203,19 @@ function App() {
       // Format datetime as ISO 8601 without timezone
       // Sweden locale format is YYYY-MM-DD HH:MM:SS
       const isoString = datetime.toLocaleString('sv').replace(' ', 'T');
-      const response = await fetch(`${API_BASE_URL}/vehicles/at/${isoString}`);
+      
+      // Build route IDs from selected categories
+      const routeIds = [];
+      selectedRouteTypes.forEach(categoryName => {
+        routeIds.push(...ROUTE_CATEGORIES[categoryName]);
+      });
+      
+      // Add routes parameter if any categories are selected
+      const url = routeIds.length > 0 
+        ? `${API_BASE_URL}/vehicles/at/${isoString}?routes=${routeIds.join(',')}`
+        : `${API_BASE_URL}/vehicles/at/${isoString}`;
+      
+      const response = await fetch(url);
       
       if (!response.ok) {
         console.error('Failed to fetch vehicles:', response.statusText);
@@ -202,7 +226,7 @@ function App() {
       
       // Only update if this response is newer than the last update
       const responseDateTime = new Date(data.datetime);
-      if (lastVehicleUpdateTimeRef.current && responseDateTime <= lastVehicleUpdateTimeRef.current) {
+      if (lastVehicleUpdateTimeRef.current && responseDateTime < lastVehicleUpdateTimeRef.current) {
         console.log('Ignoring stale vehicle data:', data.datetime);
         return;
       }
@@ -242,12 +266,12 @@ function App() {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isPlaying, speedMultiplier]);
+  }, [isPlaying, speedMultiplier, selectedRouteTypes]);
 
   // Initialize with current vehicles
   useEffect(() => {
     fetchVehicles(simulatedTime);
-  }, []);
+  }, [selectedRouteTypes]);
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
@@ -278,6 +302,26 @@ function App() {
       month: 'short', 
       day: 'numeric' 
     });
+  };
+
+  const handleRouteTypeToggle = (categoryName) => {
+    setSelectedRouteTypes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(categoryName)) {
+        newSet.delete(categoryName);
+      } else {
+        newSet.add(categoryName);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAllRoutes = () => {
+    setSelectedRouteTypes(new Set(Object.keys(ROUTE_CATEGORIES)));
+  };
+
+  const handleDeselectAllRoutes = () => {
+    setSelectedRouteTypes(new Set());
   };
 
   return (
@@ -312,6 +356,38 @@ function App() {
         
         <div className="vehicle-count">
           {vehicleCount} vehicles
+        </div>
+        
+        <div className="route-filter">
+          <button 
+            className="filter-toggle-btn"
+            onClick={() => setShowRouteFilter(!showRouteFilter)}
+            title="Filter by route type"
+          >
+            🚆 Filter ({selectedRouteTypes.size}/{Object.keys(ROUTE_CATEGORIES).length})
+          </button>
+          
+          {showRouteFilter && (
+            <div className="filter-dropdown">
+              <div className="filter-header">
+                <strong>Route Types</strong>
+                <div className="filter-actions">
+                  <button onClick={handleSelectAllRoutes} className="filter-action-btn">All</button>
+                  <button onClick={handleDeselectAllRoutes} className="filter-action-btn">None</button>
+                </div>
+              </div>
+              {Object.keys(ROUTE_CATEGORIES).map(categoryName => (
+                <label key={categoryName} className="filter-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedRouteTypes.has(categoryName)}
+                    onChange={() => handleRouteTypeToggle(categoryName)}
+                  />
+                  <span>{categoryName}</span>
+                </label>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
