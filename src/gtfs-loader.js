@@ -688,18 +688,22 @@ class GTFSDatabase {
 
   /**
    * Get vehicle positions at a specific date and time
-   * @param {Date} datetime - JavaScript Date object
+   * @param {number} year - Year (e.g., 2025)
+   * @param {number} month - Month (1-12)
+   * @param {number} day - Day of month (1-31)
+   * @param {number} hour - Hour (0-23)
+   * @param {number} minute - Minute (0-59)
+   * @param {number} second - Second (0-59)
    * @returns {Object} - Map of trip_id to GeoJSON Point feature
    */
-  getVehiclePositions(datetime) {
+  getVehiclePositions(year, month, day, hour, minute, second) {
     // Get date string in YYYYMMDD format
-    const year = datetime.getFullYear();
-    const month = String(datetime.getMonth() + 1).padStart(2, '0');
-    const day = String(datetime.getDate()).padStart(2, '0');
-    const dateString = `${year}${month}${day}`;
+    const monthStr = String(month).padStart(2, '0');
+    const dayStr = String(day).padStart(2, '0');
+    const dateString = `${year}${monthStr}${dayStr}`;
     
     // Get time in seconds since midnight
-    const currentSeconds = datetime.getHours() * 3600 + datetime.getMinutes() * 60 + datetime.getSeconds();
+    const currentSeconds = hour * 3600 + minute * 60 + second;
     
     // Get trips operating on this date
     const tripIds = this.getTripsOnDate(dateString);
@@ -854,10 +858,10 @@ class GTFSDatabase {
     const serviceIds = new Set();
     
     // Parse the date and determine day of week
-    const year = parseInt(dateString.substring(0, 4));
-    const month = parseInt(dateString.substring(4, 6)) - 1; // JS months are 0-indexed
-    const day = parseInt(dateString.substring(6, 8));
-    const date = new Date(year, month, day);
+    const yearInt = parseInt(dateString.substring(0, 4));
+    const monthInt = parseInt(dateString.substring(4, 6)) - 1; // JS months are 0-indexed
+    const dayInt = parseInt(dateString.substring(6, 8));
+    const date = new Date(yearInt, monthInt, dayInt);
     const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
     
     // Map day of week to calendar field names

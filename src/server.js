@@ -260,7 +260,15 @@ app.get('/vehicles/at/:datetime', (req, res) => {
       });
     }
     
-    const vehicles = gtfsDB.getVehiclePositions(datetime);
+    // Extract components and call getVehiclePositions with individual parameters
+    const year = datetime.getFullYear();
+    const month = datetime.getMonth() + 1; // Convert from 0-indexed to 1-indexed
+    const day = datetime.getDate();
+    const hour = datetime.getHours();
+    const minute = datetime.getMinutes();
+    const second = datetime.getSeconds();
+    
+    const vehicles = gtfsDB.getVehiclePositions(year, month, day, hour, minute, second);
     
     res.json({
       datetime: datetimeStr,
