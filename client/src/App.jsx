@@ -178,6 +178,7 @@ function App() {
   const [vehicleCount, setVehicleCount] = useState(0);
   const intervalRef = useRef(null);
   const lastUpdateRef = useRef(Date.now());
+  const lastVehicleUpdateTimeRef = useRef(null);
   const mapRef = useRef(null);
 
   // Default map center (Seattle area)
@@ -198,6 +199,15 @@ function App() {
       }
       
       const data = await response.json();
+      
+      // Only update if this response is newer than the last update
+      const responseDateTime = new Date(data.datetime);
+      if (lastVehicleUpdateTimeRef.current && responseDateTime <= lastVehicleUpdateTimeRef.current) {
+        console.log('Ignoring stale vehicle data:', data.datetime);
+        return;
+      }
+      
+      lastVehicleUpdateTimeRef.current = responseDateTime;
       setVehicleData(data.vehicles || {});
       setVehicleCount(data.vehicle_count || 0);
     } catch (error) {
