@@ -305,7 +305,7 @@ function App() {
   useEffect(() => {
     if (!isPlaying) return;
 
-    const updateInterval = 500; // Update 1 time per second
+    const updateInterval = 250; // Update 4 times per second
     
     intervalRef.current = setInterval(() => {
       const now = Date.now();
