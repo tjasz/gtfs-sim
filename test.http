@@ -40,6 +40,9 @@ GET http://localhost:3000/vehicles/at/2025-11-19T12:00:00
 ### Get vehicle positions at evening rush hour
 GET http://localhost:3000/vehicles/at/2025-11-19T17:30:00
 
+### Get vehicle positions at evening rush hour
+GET http://localhost:3000/vehicles/at/2025-11-19T17:30:00?routes=100479,2LINE,TLINE
+
 ### Test invalid datetime format (should return 400)
 GET http://localhost:3000/vehicles/at/2025-11-19 09:27:00
 

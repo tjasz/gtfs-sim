@@ -239,6 +239,8 @@ app.get('/services/on/:date', (req, res) => {
  * GET /vehicles/at/:datetime
  * Returns vehicle positions at a specific date and time as a map of trip_id to position
  * DateTime format: ISO 8601 without timezone (e.g., 2025-11-19T09:27:00)
+ * Query parameters:
+ *   - routes: Comma-separated list of route IDs to filter by (optional)
  */
 app.get('/vehicles/at/:datetime', (req, res) => {
   try {
@@ -260,6 +262,12 @@ app.get('/vehicles/at/:datetime', (req, res) => {
       });
     }
     
+    // Parse routes query parameter
+    let routeIds = null;
+    if (req.query.routes) {
+      routeIds = req.query.routes.split(',').map(id => id.trim()).filter(id => id.length > 0);
+    }
+    
     // Extract components and call getVehiclePositions with individual parameters
     const year = datetime.getFullYear();
     const month = datetime.getMonth() + 1; // Convert from 0-indexed to 1-indexed
@@ -274,12 +282,13 @@ app.get('/vehicles/at/:datetime', (req, res) => {
     const prevDay = prevDate.getDate();
     
     const vehicles = {
-      ...gtfsDB.getVehiclePositions(year, month, day, hour, minute, second),
-      ...(hour < 5 ? gtfsDB.getVehiclePositions(prevYear, prevMonth, prevDay, hour+24, minute, second) : {})
+      ...gtfsDB.getVehiclePositions(year, month, day, hour, minute, second, routeIds),
+      ...(hour < 5 ? gtfsDB.getVehiclePositions(prevYear, prevMonth, prevDay, hour+24, minute, second, routeIds) : {})
     };
     
     res.json({
       datetime: datetimeStr,
+      routes: routeIds,
       vehicle_count: Object.keys(vehicles).length,
       vehicles: vehicles
     });

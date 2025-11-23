@@ -485,6 +485,24 @@ class GTFSDatabase {
   }
 
   /**
+   * Get trip IDs for specified route IDs
+   * @param {Array<string>} routeIds - Array of route IDs
+   * @returns {Array<string>} - Array of trip IDs
+   */
+  getTripsByRoutes(routeIds) {
+    const tripIds = [];
+    const routeIdSet = new Set(routeIds);
+    
+    for (const trip of this.trips.values()) {
+      if (routeIdSet.has(trip.route_id)) {
+        tripIds.push(trip.trip_id);
+      }
+    }
+    
+    return tripIds;
+  }
+
+  /**
    * Load calendar from calendar.txt file
    */
   async loadCalendar(filePath) {
@@ -694,9 +712,10 @@ class GTFSDatabase {
    * @param {number} hour - Hour (0-23)
    * @param {number} minute - Minute (0-59)
    * @param {number} second - Second (0-59)
+   * @param {Array<string>} routeIds - Optional array of route IDs to filter by
    * @returns {Object} - Map of trip_id to GeoJSON Point feature
    */
-  getVehiclePositions(year, month, day, hour, minute, second) {
+  getVehiclePositions(year, month, day, hour, minute, second, routeIds = null) {
     // Get date string in YYYYMMDD format
     const monthStr = String(month).padStart(2, '0');
     const dayStr = String(day).padStart(2, '0');
@@ -706,7 +725,15 @@ class GTFSDatabase {
     const currentSeconds = hour * 3600 + minute * 60 + second;
     
     // Get trips operating on this date
-    const tripIds = this.getTripsOnDate(dateString);
+    let tripIds = this.getTripsOnDate(dateString);
+    
+    // Filter by routes if specified
+    if (routeIds && routeIds.length > 0) {
+      const routeTripIds = this.getTripsByRoutes(routeIds);
+      const routeTripIdSet = new Set(routeTripIds);
+      tripIds = tripIds.filter(tripId => routeTripIdSet.has(tripId));
+    }
+    
     const vehicles = {};
     
     for (const tripId of tripIds) {
