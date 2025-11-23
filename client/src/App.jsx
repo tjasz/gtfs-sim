@@ -245,9 +245,11 @@ function App() {
   };
 
   const handleFastForward = () => {
+    const speedOptions = [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60, 120];
     setSpeedMultiplier(prev => {
-      const newSpeed = prev * 2;
-      return newSpeed > 128 ? 1 : newSpeed; // Cap at 128x, then reset to 1x
+      const currentIndex = speedOptions.indexOf(prev);
+      const nextIndex = (currentIndex + 1) % speedOptions.length;
+      return speedOptions[nextIndex];
     });
   };
 
