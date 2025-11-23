@@ -235,6 +235,21 @@ app.get('/services/on/:date', (req, res) => {
   }
 });
 
+function prevDate(year, month, day) {
+  --day;
+  if (day < 1) {
+    --month;
+    // Set day to last day of previous month
+    day = new Date(year, month, 0).getDate();
+  }
+  if (month < 1) {
+    --year;
+    month = 12;
+  }
+  
+  return [year, month, day];
+}
+
 /**
  * GET /vehicles/at/:datetime
  * Returns vehicle positions at a specific date and time as a map of trip_id to position
@@ -267,8 +282,13 @@ app.get('/vehicles/at/:datetime', (req, res) => {
     const hour = datetime.getHours();
     const minute = datetime.getMinutes();
     const second = datetime.getSeconds();
+
+    const [prevYear, prevMonth, prevDay] = prevDate(year, month, day);
     
-    const vehicles = gtfsDB.getVehiclePositions(year, month, day, hour, minute, second);
+    const vehicles = {
+      ...gtfsDB.getVehiclePositions(year, month, day, hour, minute, second),
+      ...gtfsDB.getVehiclePositions(prevYear, prevMonth, prevDay, hour+24, minute, second)
+    };
     
     res.json({
       datetime: datetimeStr,
