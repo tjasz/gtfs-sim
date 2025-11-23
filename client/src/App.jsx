@@ -46,36 +46,44 @@ const getVehicleIcon = (routeType) => {
 const createPopupContent = (props) => {
   let content = '<div style="font-size: 14px;">';
   
+  // Trip headsign and trip ID
+  if (props.trip_headsign) {
+    content += `<strong>${props.trip_headsign}</strong><br/>`;
+  }
+  content += `<small>Trip ID: ${props.trip_id}</small><br/>`;
+  
+  content += '<hr style="margin: 5px 0;">';
+  
   // Route information
   if (props.route) {
-    if (props.route.route_short_name || props.route.route_long_name) {
-      content += '<strong>';
-      if (props.route.route_short_name) {
-        content += `Route ${props.route.route_short_name}`;
-        if (props.route.route_long_name) {
-          content += ': ';
-        }
-      }
+    if (props.route.route_short_name) {
+      content += `<strong>Route ${props.route.route_short_name}</strong>`;
       if (props.route.route_long_name) {
-        content += props.route.route_long_name;
+        content += ': ';
       }
-      content += '</strong><br/>';
+      content += '<br/>';
     }
-    
+    if (props.route.route_long_name) {
+      content += `${props.route.route_long_name}<br/>`;
+    }
     if (props.route.route_id) {
       content += `<small>Route ID: ${props.route.route_id}</small><br/>`;
     }
   }
   
   content += '<hr style="margin: 5px 0;">';
-  content += `<strong>Trip ID:</strong> ${props.trip_id}<br/>`;
+  
+  // Status and stop information
   content += `<strong>Status:</strong> ${props.status}<br/>`;
   
   if (props.status === 'at_stop') {
     content += `<strong>Stop:</strong> ${props.stop_name}<br/>`;
+    content += `<small>Stop ID: ${props.stop_id}</small><br/>`;
   } else if (props.status === 'in_transit') {
-    content += `<strong>From:</strong> ${props.from_stop_id}<br/>`;
-    content += `<strong>To:</strong> ${props.to_stop_id}<br/>`;
+    content += `<strong>From:</strong> ${props.from_stop_name || props.from_stop_id}<br/>`;
+    content += `<small>Stop ID: ${props.from_stop_id}</small><br/>`;
+    content += `<strong>To:</strong> ${props.to_stop_name || props.to_stop_id}<br/>`;
+    content += `<small>Stop ID: ${props.to_stop_id}</small><br/>`;
   }
   
   if (props.shape_dist_traveled != null) {
