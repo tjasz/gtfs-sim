@@ -8,13 +8,6 @@ import L from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
-function toTitleCase(str) {
-  return str.replace(
-    /\w\S*/g,
-    text => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
-  );
-}
-
 let DefaultIcon = L.icon({
   iconUrl: icon,
   shadowUrl: iconShadow,
@@ -160,15 +153,27 @@ function VehicleMarkers({ vehicleData }) {
 
 // Route type categories and their IDs
 const ROUTE_CATEGORIES = {
-  'Intercity Rail': ['51', '52', '53', '54', '55', '56', '57', '58', '59', '60'],
-  'Commuter Rail': ['SNDR_EV', 'SNDR_TL'],
-  'Light Rail': ['100479', '2LINE'],
-  'Monorail': ['SCM'],
-  'Streetcar': ['TLINE', '100340', '102638'],
-  'Bus Rapid Transit': ['100512', '102548', '102576', '102581', '102615', '102619', '102745', '102736', '701', '702', '703'],
-  'Sound Transit Express': ['1-SHUTTLE','100232','100236','100239','100240','100451','100511','102734','510','512','513','515','532','535','560','574','577','578','580','586','590','592','594','595','596'],
-  'Fast Ferry/Water Taxi': ['100336','100337','20-400','20-402','20-500','20-501','401','403','404','405'],
-  'Ferry': ['1013','1015','1018','110','1117','113','115','118','128','131','1310','1315','1318','145','151','1510','1513','1518','1621','1711','1810','1813','1815','2022','2116','2220','37','514','73','74','812','920','922','95-101','95-181','95-209','95-229','95-47',],
+  'intercity': ['51', '52', '53', '54', '55', '56', '57', '58', '59', '60'],
+  'commuter': ['SNDR_EV', 'SNDR_TL'],
+  'lightrail': ['100479', '2LINE'],
+  'monorail': ['SCM'],
+  'streetcar': ['TLINE', '100340', '102638'],
+  'brt': ['100512', '102548', '102576', '102581', '102615', '102619', '102745', '102736', '701', '702', '703'],
+  'stx': ['1-SHUTTLE','100232','100236','100239','100240','100451','100511','102734','510','512','513','515','532','535','560','574','577','578','580','586','590','592','594','595','596'],
+  'fastferry': ['100336','100337','20-400','20-402','20-500','20-501','401','403','404','405'],
+  'ferry': ['1013','1015','1018','110','1117','113','115','118','128','131','1310','1315','1318','145','151','1510','1513','1518','1621','1711','1810','1813','1815','2022','2116','2220','37','514','73','74','812','920','922','95-101','95-181','95-209','95-229','95-47',],
+};
+
+const ROUTE_CATEGORY_FRIENDLY_NAMES = {
+  'intercity': 'Intercity Rail',
+  'commuter': 'Commuter Rail',
+  'lightrail': 'Light Rail',
+  'monorail': 'Monorail',
+  'streetcar': 'Streetcar',
+  'brt': 'Bus Rapid Transit',
+  'stx': 'Sound Transit Express',
+  'fastferry': 'Fast Ferry/Water Taxi',
+  'ferry': 'Ferry',
 };
 
 function App() {
@@ -199,7 +204,7 @@ function App() {
     
     if (routesParam) {
       // Parse comma-separated route category names
-      const categoryNames = routesParam.split(',').map(name => toTitleCase(name.trim()));
+      const categoryNames = routesParam.split(',').map(name => name.trim().toLowerCase());
       
       // Filter to only include valid category names
       const validCategories = categoryNames.filter(name => 
@@ -434,7 +439,7 @@ function App() {
                     checked={selectedRouteTypes.has(categoryName)}
                     onChange={() => handleRouteTypeToggle(categoryName)}
                   />
-                  <span>{categoryName}</span>
+                  <span>{ROUTE_CATEGORY_FRIENDLY_NAMES[categoryName]}</span>
                 </label>
               ))}
               <label className="filter-checkbox filter-checkbox-disabled">
