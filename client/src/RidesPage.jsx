@@ -79,9 +79,14 @@ function RideCard({ ride }) {
             <span className="stop-name">{ride.origin.stop_name}</span>
             <span className="time-cell">{formatTime(timeToSeconds(ride.origin.stop_time.departure_time))}</span>
             <span className="leg-arrow">→</span>
-            {bestArr !== null && (
-              <span className="best-arrival">arrives {formatTime(bestArr)}</span>
-            )}
+            {bestArr !== null && (() => {
+              const dep = timeToSeconds(ride.origin.stop_time.departure_time);
+              const elapsed = bestArr - dep;
+              const mins = Math.round(elapsed / 60);
+              return (
+                <span className="best-arrival">arrives {formatTime(bestArr)} ({mins} min)</span>
+              );
+            })()}
           </span>
         </div>
       </button>
