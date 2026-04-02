@@ -574,21 +574,23 @@ curl "http://localhost:3000/rides/on/20251119?origin=47.6062,-122.3321&destinati
 
 ### Get Two-Seat Rides on a Date
 ```
-GET /twoSeatRides/on/:date?origin=lat,lon&destination=lat,lon&threshold=meters
+GET /twoSeatRides/on/:date?origin=lat,lon&destination=lat,lon&threshold=meters&offBusSpeed=mps&transferBuffer=seconds
 ```
-Returns two-seat (one-transfer) trip pairs operating on a specific date that connect an origin to a destination via a transfer between stops within the threshold distance. Date must be in YYYYMMDD format.
+Returns two-seat (one-transfer) rides operating on a specific date that connect an origin to a destination via a transfer between stops within the threshold distance. Date must be in YYYYMMDD format.
 
 **Query Parameters:**
 - `origin` (required): Origin coordinates as `lat,lon` (e.g., `47.6062,-122.3321`)
 - `destination` (required): Destination coordinates as `lat,lon` (e.g., `47.6101,-122.3420`)
 - `threshold` (optional): Maximum distance in meters for stop proximity (default: `500`)
+- `offBusSpeed` (optional): Walking speed in meters per second for transfer time calculation (default: `1.4`)
+- `transferBuffer` (optional): Additional buffer time in seconds added to transfer walking time (default: `120`)
 
 This endpoint:
 1. Finds all trips operating on the given date
 2. Identifies "origin trips" that have a stop near the origin and subsequent stops that could serve as transfer points
 3. Identifies "destination trips" that have a stop near the destination and preceding stops that could serve as transfer points
 4. Uses a geographic grid index to efficiently match transfer stops between origin and destination trips within the threshold distance
-5. Returns origin trips and destination trips as separate arrays (not one-to-one paired), allowing flexible matching
+5. Pairs each origin trip with its transfer points and matching continuation (destination) trips
 
 **Example:**
 ```bash
@@ -602,9 +604,10 @@ curl "http://localhost:3000/twoSeatRides/on/20251119?origin=47.6062,-122.3321&de
   "origin": { "lat": 47.6062, "lon": -122.3321 },
   "destination": { "lat": 47.6101, "lon": -122.342 },
   "threshold": 500,
-  "origin_trip_count": 5,
-  "destination_trip_count": 3,
-  "originTrips": [
+  "offBusSpeed": 1.4,
+  "transferBuffer": 120,
+  "ride_count": 2,
+  "rides": [
     {
       "route": {
         "route_id": "100001",
@@ -630,56 +633,60 @@ curl "http://localhost:3000/twoSeatRides/on/20251119?origin=47.6062,-122.3321&de
           "stop_sequence": 5
         }
       },
-      "transfer": {
-        "stop_id": "1-150",
-        "stop_name": "3rd Ave & Union St",
-        "stop_lat": 47.608,
-        "stop_lon": -122.338,
-        "stop_time": {
-          "arrival_time": "09:22:00",
-          "departure_time": "09:22:00",
-          "stop_sequence": 10
+      "transfers": [
+        {
+          "transfer_stop": {
+            "stop_id": "1-150",
+            "stop_name": "3rd Ave & Union St",
+            "stop_lat": 47.608,
+            "stop_lon": -122.338,
+            "stop_time": {
+              "arrival_time": "09:22:00",
+              "departure_time": "09:22:00",
+              "stop_sequence": 10
+            }
+          },
+          "continuations": [
+            {
+              "route": {
+                "route_id": "100002",
+                "route_short_name": "2",
+                "route_long_name": "Queen Anne - Downtown Seattle",
+                "route_type": 3
+              },
+              "trip": {
+                "trip_id": "347619700",
+                "route_id": "100002",
+                "service_id": "32350",
+                "trip_headsign": "Queen Anne",
+                "shape_id": "10003005"
+              },
+              "transfer_stop": {
+                "stop_id": "1-151",
+                "stop_name": "3rd Ave & Union St (NB)",
+                "stop_lat": 47.6081,
+                "stop_lon": -122.3379,
+                "stop_time": {
+                  "arrival_time": "09:30:00",
+                  "departure_time": "09:30:00",
+                  "stop_sequence": 3
+                }
+              },
+              "destination": {
+                "stop_id": "1-200",
+                "stop_name": "3rd Ave & Pike St",
+                "stop_lat": 47.6101,
+                "stop_lon": -122.342,
+                "stop_time": {
+                  "arrival_time": "09:40:00",
+                  "departure_time": "09:40:00",
+                  "stop_sequence": 8
+                }
+              }
+            }
+          ]
         }
-      }
-    }
-  ],
-  "destinationTrips": [
-    {
-      "route": {
-        "route_id": "100002",
-        "route_short_name": "2",
-        "route_long_name": "Queen Anne - Downtown Seattle",
-        "route_type": 3
-      },
-      "trip": {
-        "trip_id": "347619700",
-        "route_id": "100002",
-        "service_id": "32350",
-        "trip_headsign": "Queen Anne",
-        "shape_id": "10003005"
-      },
-      "transfer": {
-        "stop_id": "1-151",
-        "stop_name": "3rd Ave & Union St (NB)",
-        "stop_lat": 47.6081,
-        "stop_lon": -122.3379,
-        "stop_time": {
-          "arrival_time": "09:30:00",
-          "departure_time": "09:30:00",
-          "stop_sequence": 3
-        }
-      },
-      "destination": {
-        "stop_id": "1-200",
-        "stop_name": "3rd Ave & Pike St",
-        "stop_lat": 47.6101,
-        "stop_lon": -122.342,
-        "stop_time": {
-          "arrival_time": "09:40:00",
-          "departure_time": "09:40:00",
-          "stop_sequence": 8
-        }
-      }
+      ]
     }
   ]
 }
