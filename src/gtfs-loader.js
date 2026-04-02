@@ -1092,9 +1092,14 @@ class GTFSDatabase {
 
       const transfers = [];
       for (const transfer of transferMap.values()) {
+        // Keep only the 10 earliest-arriving continuations
+        transfer.continuations.sort((a, b) =>
+          this.timeToSeconds(a.destination.stop_time.arrival_time) -
+          this.timeToSeconds(b.destination.stop_time.arrival_time)
+        );
         transfers.push({
           transfer_stop: { ...transfer.stop, stop_time: { ...transfer.stopTime } },
-          continuations: transfer.continuations
+          continuations: transfer.continuations.slice(0, 10)
         });
       }
 
