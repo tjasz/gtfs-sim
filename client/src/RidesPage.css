@@ -1,0 +1,273 @@
+.rides-page {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  color: #1a1a1a;
+}
+
+.rides-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.rides-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.back-link {
+  color: #2196F3;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+/* Form */
+.rides-form {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.form-row:last-child {
+  margin-bottom: 0;
+}
+
+.form-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 140px;
+}
+
+.form-row label span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.form-row input {
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+}
+
+.form-row input:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.15);
+}
+
+.search-btn {
+  padding: 8px 24px;
+  background: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+  height: 36px;
+}
+
+.search-btn:hover:not(:disabled) {
+  background: #1976D2;
+}
+
+.search-btn:disabled {
+  background: #90CAF9;
+  cursor: not-allowed;
+}
+
+/* Error and summary */
+.rides-error {
+  background: #FFEBEE;
+  color: #C62828;
+  padding: 10px 16px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.rides-summary {
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 12px;
+}
+
+/* Table */
+.rides-table-container {
+  overflow-x: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+}
+
+.rides-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.rides-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.th-group {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.th-origin-group {
+  background: #E3F2FD;
+  color: #1565C0;
+  border-bottom: 2px solid #90CAF9;
+}
+
+.th-dest-group {
+  background: #FFF3E0;
+  color: #E65100;
+  border-bottom: 2px solid #FFCC80;
+  border-left: 2px solid #e0e0e0;
+}
+
+.th-origin {
+  background: #f0f7ff;
+  color: #333;
+  padding: 6px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.th-dest {
+  background: #fff8f0;
+  color: #333;
+  padding: 6px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.th-dest:first-of-type {
+  border-left: 2px solid #e0e0e0;
+}
+
+.rides-table tbody tr {
+  transition: background 0.15s;
+}
+
+.rides-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.row-origin td {
+  background: #f8fbff;
+  border-bottom: 1px solid #eef3f8;
+}
+
+.row-dest td {
+  background: #fffbf5;
+  border-bottom: 1px solid #f5efe8;
+}
+
+.row-unmatched td {
+  opacity: 0.5;
+}
+
+.rides-table td {
+  padding: 6px 12px;
+  vertical-align: middle;
+}
+
+.empty-cell {
+  background: #fafafa !important;
+}
+
+.time-cell {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.stop-name {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.time-sub {
+  font-size: 11px;
+  color: #888;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.route-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  min-width: 28px;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .rides-page {
+    padding: 12px;
+  }
+
+  .form-row {
+    flex-direction: column;
+  }
+
+  .form-row label {
+    min-width: 100%;
+  }
+
+  .rides-table {
+    font-size: 12px;
+  }
+
+  .stop-name {
+    max-width: 140px;
+  }
+}

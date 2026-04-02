@@ -883,6 +883,238 @@ class GTFSDatabase {
   }
 
   /**
+   * Get one-seat rides (direct trips) between an origin and destination on a given date
+   * @param {string} dateString - Date in YYYYMMDD format
+   * @param {{lat: number, lon: number}} originLatLon - Origin coordinates
+   * @param {{lat: number, lon: number}} destinationLatLon - Destination coordinates
+   * @param {number} threshold - Maximum distance in meters from origin/destination to stops
+   * @returns {Array<Object>} - Array of { route, trip, origin: { ...stop, stop_time }, destination: { ...stop, stop_time } }
+   */
+  getOneSeatRidesOnDate(dateString, originLatLon, destinationLatLon, threshold) {
+    const tripIds = this.getTripsOnDate(dateString);
+    const results = [];
+
+    for (const tripId of tripIds) {
+      const stopTimes = this.stopTimes.get(tripId);
+      if (!stopTimes || stopTimes.length < 2) continue;
+
+      // Find the closest origin and destination stops within threshold
+      let bestOrigin = null;
+      let bestOriginDist = Infinity;
+      let bestDest = null;
+      let bestDestDist = Infinity;
+
+      for (const st of stopTimes) {
+        const stop = this.stops.get(st.stop_id);
+        if (!stop) continue;
+
+        const originDist = haversineDistance(originLatLon.lat, originLatLon.lon, stop.stop_lat, stop.stop_lon);
+        if (originDist <= threshold && originDist < bestOriginDist) {
+          bestOriginDist = originDist;
+          bestOrigin = { stop, stopTime: st };
+        }
+
+        const destDist = haversineDistance(destinationLatLon.lat, destinationLatLon.lon, stop.stop_lat, stop.stop_lon);
+        if (destDist <= threshold && destDist < bestDestDist) {
+          bestDestDist = destDist;
+          bestDest = { stop, stopTime: st };
+        }
+      }
+
+      // Must have both, and origin must come before destination in the sequence
+      if (!bestOrigin || !bestDest) continue;
+      if (bestOrigin.stopTime.stop_sequence >= bestDest.stopTime.stop_sequence) continue;
+
+      const trip = this.trips.get(tripId);
+      const route = trip ? this.routes.get(trip.route_id) : null;
+
+      results.push({
+        route: route ? { ...route } : null,
+        trip: { ...trip },
+        origin: {
+          ...bestOrigin.stop,
+          stop_time: { ...bestOrigin.stopTime }
+        },
+        destination: {
+          ...bestDest.stop,
+          stop_time: { ...bestDest.stopTime }
+        }
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * Get two-seat (one-transfer) rides between an origin and destination on a given date.
+   * Uses a geographic grid index for efficient spatial matching of transfer stops.
+   * @param {string} dateString - Date in YYYYMMDD format
+   * @param {{lat: number, lon: number}} originLatLon - Origin coordinates
+   * @param {{lat: number, lon: number}} destinationLatLon - Destination coordinates
+   * @param {number} threshold - Maximum distance in meters for stop proximity
+   * @returns {Object} - { originTrips: [...], destinationTrips: [...] }
+   */
+  getTwoSeatRidesOnDate(dateString, originLatLon, destinationLatLon, threshold) {
+    const tripIds = this.getTripsOnDate(dateString);
+
+    // Geographic grid index helpers
+    const cellSize = threshold / 111000; // approximate degrees per threshold meters
+    const getCell = (lat, lon) => `${Math.floor(lat / cellSize)},${Math.floor(lon / cellSize)}`;
+    const getNearbyCells = (lat, lon) => {
+      const cLat = Math.floor(lat / cellSize);
+      const cLon = Math.floor(lon / cellSize);
+      const cells = [];
+      for (let dLat = -1; dLat <= 1; dLat++) {
+        for (let dLon = -1; dLon <= 1; dLon++) {
+          cells.push(`${cLat + dLat},${cLon + dLon}`);
+        }
+      }
+      return cells;
+    };
+
+    // Find stops near origin and destination
+    const originStopDists = new Map();
+    const destStopDists = new Map();
+    for (const stop of this.stops.values()) {
+      const oDist = haversineDistance(originLatLon.lat, originLatLon.lon, stop.stop_lat, stop.stop_lon);
+      if (oDist <= threshold) originStopDists.set(stop.stop_id, oDist);
+      const dDist = haversineDistance(destinationLatLon.lat, destinationLatLon.lon, stop.stop_lat, stop.stop_lon);
+      if (dDist <= threshold) destStopDists.set(stop.stop_id, dDist);
+    }
+
+    // Identify candidate origin trips (stop near origin + subsequent transfer stops)
+    // and candidate destination trips (stop near destination + preceding transfer stops)
+    const candidateOriginTrips = [];
+    const candidateDestTrips = [];
+
+    for (const tripId of tripIds) {
+      const stopTimes = this.stopTimes.get(tripId);
+      if (!stopTimes || stopTimes.length < 2) continue;
+
+      // Origin trip: closest stop to origin within threshold
+      let bestOriginST = null;
+      let bestOriginDist = Infinity;
+      for (const st of stopTimes) {
+        if (originStopDists.has(st.stop_id) && originStopDists.get(st.stop_id) < bestOriginDist) {
+          bestOriginDist = originStopDists.get(st.stop_id);
+          bestOriginST = st;
+        }
+      }
+      if (bestOriginST) {
+        const transferSTs = stopTimes.filter(st => st.stop_sequence > bestOriginST.stop_sequence);
+        if (transferSTs.length > 0) {
+          candidateOriginTrips.push({ tripId, originST: bestOriginST, transferSTs });
+        }
+      }
+
+      // Destination trip: closest stop to destination within threshold
+      let bestDestST = null;
+      let bestDestDist = Infinity;
+      for (const st of stopTimes) {
+        if (destStopDists.has(st.stop_id) && destStopDists.get(st.stop_id) < bestDestDist) {
+          bestDestDist = destStopDists.get(st.stop_id);
+          bestDestST = st;
+        }
+      }
+      if (bestDestST) {
+        const transferSTs = stopTimes.filter(st => st.stop_sequence < bestDestST.stop_sequence);
+        if (transferSTs.length > 0) {
+          candidateDestTrips.push({ tripId, destST: bestDestST, transferSTs });
+        }
+      }
+    }
+
+    // Build spatial index of destination trip transfer stops
+    // cell -> [{destIdx, stopTime, stop}]
+    const destTransferGrid = new Map();
+    for (let di = 0; di < candidateDestTrips.length; di++) {
+      for (const st of candidateDestTrips[di].transferSTs) {
+        const stop = this.stops.get(st.stop_id);
+        if (!stop) continue;
+        const cell = getCell(stop.stop_lat, stop.stop_lon);
+        if (!destTransferGrid.has(cell)) destTransferGrid.set(cell, []);
+        destTransferGrid.get(cell).push({ destIdx: di, stopTime: st, stop });
+      }
+    }
+
+    // Match origin trips to destination trips via transfer stop proximity
+    const validOriginTrips = new Map(); // oi -> {transferST, transferStop}
+    const validDestTrips = new Map();   // di -> {transferST, transferStop, bestDist}
+
+    for (let oi = 0; oi < candidateOriginTrips.length; oi++) {
+      const ot = candidateOriginTrips[oi];
+      let bestDist = Infinity;
+      let bestTransferST = null;
+      let bestTransferStop = null;
+
+      for (const st of ot.transferSTs) {
+        const stop = this.stops.get(st.stop_id);
+        if (!stop) continue;
+
+        for (const cell of getNearbyCells(stop.stop_lat, stop.stop_lon)) {
+          const entries = destTransferGrid.get(cell);
+          if (!entries) continue;
+          for (const entry of entries) {
+            const dist = haversineDistance(stop.stop_lat, stop.stop_lon, entry.stop.stop_lat, entry.stop.stop_lon);
+            if (dist <= threshold) {
+              if (dist < bestDist) {
+                bestDist = dist;
+                bestTransferST = st;
+                bestTransferStop = stop;
+              }
+              const existing = validDestTrips.get(entry.destIdx);
+              if (!existing || dist < existing.bestDist) {
+                validDestTrips.set(entry.destIdx, {
+                  transferST: entry.stopTime,
+                  transferStop: entry.stop,
+                  bestDist: dist
+                });
+              }
+            }
+          }
+        }
+      }
+
+      if (bestTransferST) {
+        validOriginTrips.set(oi, { transferST: bestTransferST, transferStop: bestTransferStop });
+      }
+    }
+
+    // Build output
+    const originTripsResult = [];
+    for (const [oi, transfer] of validOriginTrips) {
+      const ct = candidateOriginTrips[oi];
+      const trip = this.trips.get(ct.tripId);
+      const route = trip ? this.routes.get(trip.route_id) : null;
+      const originStop = this.stops.get(ct.originST.stop_id);
+
+      originTripsResult.push({
+        route: route ? { ...route } : null,
+        trip: { ...trip },
+        origin: { ...originStop, stop_time: { ...ct.originST } },
+        transfer: { ...transfer.transferStop, stop_time: { ...transfer.transferST } }
+      });
+    }
+
+    const destinationTripsResult = [];
+    for (const [di, transfer] of validDestTrips) {
+      const ct = candidateDestTrips[di];
+      const trip = this.trips.get(ct.tripId);
+      const route = trip ? this.routes.get(trip.route_id) : null;
+      const destStop = this.stops.get(ct.destST.stop_id);
+
+      destinationTripsResult.push({
+        route: route ? { ...route } : null,
+        trip: { ...trip },
+        transfer: { ...transfer.transferStop, stop_time: { ...transfer.transferST } },
+        destination: { ...destStop, stop_time: { ...ct.destST } }
+      });
+    }
+
+    return { originTrips: originTripsResult, destinationTrips: destinationTripsResult };
+  }
+
+  /**
    * Get service IDs operating on a specific date
    * @param {string} dateString - Date in YYYYMMDD format
    * @returns {Array<string>} - Array of service IDs

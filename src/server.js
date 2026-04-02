@@ -299,6 +299,131 @@ app.get('/vehicles/at/:datetime', (req, res) => {
 });
 
 /**
+ * GET /rides/on/:date
+ * Returns one-seat rides between origin and destination on a specific date
+ * Date format: YYYYMMDD
+ * Query parameters:
+ *   - origin: lat,lon of origin (required)
+ *   - destination: lat,lon of destination (required)
+ *   - threshold: max distance in meters from origin/destination to stops (default: 500)
+ */
+app.get('/rides/on/:date', (req, res) => {
+  try {
+    const dateString = req.params.date;
+
+    // Validate date format
+    if (!/^\d{8}$/.test(dateString)) {
+      return res.status(400).json({
+        error: 'Invalid date format. Expected YYYYMMDD (e.g., 20251119)'
+      });
+    }
+
+    // Validate origin
+    if (!req.query.origin) {
+      return res.status(400).json({ error: 'Missing required query parameter: origin (lat,lon)' });
+    }
+    const originParts = req.query.origin.split(',');
+    if (originParts.length !== 2 || originParts.some(p => isNaN(parseFloat(p)))) {
+      return res.status(400).json({ error: 'Invalid origin format. Expected lat,lon (e.g., 47.6062,-122.3321)' });
+    }
+    const originLatLon = { lat: parseFloat(originParts[0]), lon: parseFloat(originParts[1]) };
+
+    // Validate destination
+    if (!req.query.destination) {
+      return res.status(400).json({ error: 'Missing required query parameter: destination (lat,lon)' });
+    }
+    const destParts = req.query.destination.split(',');
+    if (destParts.length !== 2 || destParts.some(p => isNaN(parseFloat(p)))) {
+      return res.status(400).json({ error: 'Invalid destination format. Expected lat,lon (e.g., 47.6101,-122.3420)' });
+    }
+    const destinationLatLon = { lat: parseFloat(destParts[0]), lon: parseFloat(destParts[1]) };
+
+    // Parse threshold (default 500 meters)
+    const threshold = req.query.threshold ? parseFloat(req.query.threshold) : 500;
+    if (isNaN(threshold) || threshold <= 0) {
+      return res.status(400).json({ error: 'Invalid threshold. Must be a positive number (meters)' });
+    }
+
+    const rides = gtfsDB.getOneSeatRidesOnDate(dateString, originLatLon, destinationLatLon, threshold);
+
+    res.json({
+      date: dateString,
+      origin: originLatLon,
+      destination: destinationLatLon,
+      threshold,
+      ride_count: rides.length,
+      rides
+    });
+  } catch (error) {
+    console.error('Error fetching rides:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /twoSeatRides/on/:date
+ * Returns two-seat (one-transfer) rides between origin and destination on a specific date
+ * Date format: YYYYMMDD
+ * Query parameters:
+ *   - origin: lat,lon of origin (required)
+ *   - destination: lat,lon of destination (required)
+ *   - threshold: max distance in meters from origin/destination to stops (default: 500)
+ */
+app.get('/twoSeatRides/on/:date', (req, res) => {
+  try {
+    const dateString = req.params.date;
+
+    // Validate date format
+    if (!/^\d{8}$/.test(dateString)) {
+      return res.status(400).json({
+        error: 'Invalid date format. Expected YYYYMMDD (e.g., 20251119)'
+      });
+    }
+
+    // Validate origin
+    if (!req.query.origin) {
+      return res.status(400).json({ error: 'Missing required query parameter: origin (lat,lon)' });
+    }
+    const originParts = req.query.origin.split(',');
+    if (originParts.length !== 2 || originParts.some(p => isNaN(parseFloat(p)))) {
+      return res.status(400).json({ error: 'Invalid origin format. Expected lat,lon (e.g., 47.6062,-122.3321)' });
+    }
+    const originLatLon = { lat: parseFloat(originParts[0]), lon: parseFloat(originParts[1]) };
+
+    // Validate destination
+    if (!req.query.destination) {
+      return res.status(400).json({ error: 'Missing required query parameter: destination (lat,lon)' });
+    }
+    const destParts = req.query.destination.split(',');
+    if (destParts.length !== 2 || destParts.some(p => isNaN(parseFloat(p)))) {
+      return res.status(400).json({ error: 'Invalid destination format. Expected lat,lon (e.g., 47.6101,-122.3420)' });
+    }
+    const destinationLatLon = { lat: parseFloat(destParts[0]), lon: parseFloat(destParts[1]) };
+
+    // Parse threshold (default 500 meters)
+    const threshold = req.query.threshold ? parseFloat(req.query.threshold) : 500;
+    if (isNaN(threshold) || threshold <= 0) {
+      return res.status(400).json({ error: 'Invalid threshold. Must be a positive number (meters)' });
+    }
+
+    const result = gtfsDB.getTwoSeatRidesOnDate(dateString, originLatLon, destinationLatLon, threshold);
+
+    res.json({
+      date: dateString,
+      origin: originLatLon,
+      destination: destinationLatLon,
+      threshold,
+      origin_trip_count: result.originTrips.length,
+      destination_trip_count: result.destinationTrips.length,
+      ...result
+    });
+  } catch (error) {
+    console.error('Error fetching two-seat rides:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
  * Health check endpoint
  */
 app.get('/health', (req, res) => {
@@ -371,6 +496,8 @@ async function startServer() {
       console.log(`  GET /trips/on/:date - Get trip IDs operating on a date (YYYYMMDD)`);
       console.log(`  GET /services/on/:date - Get service IDs operating on a date (YYYYMMDD)`);
       console.log(`  GET /vehicles/at/:datetime - Get vehicle positions at a datetime (ISO 8601)`);
+      console.log(`  GET /rides/on/:date - Get one-seat rides between origin and destination`);
+      console.log(`  GET /twoSeatRides/on/:date - Get two-seat rides between origin and destination`);
       console.log(`  GET /health - Health check`);
     });
   } catch (error) {

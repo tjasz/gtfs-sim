@@ -18,5 +18,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true
-  }
+  },
+  // Ensure SPA fallback for client-side routes like /rides
+  appType: 'spa'
 });
