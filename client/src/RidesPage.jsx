@@ -149,6 +149,8 @@ function RidesPage() {
   const [origin, setOrigin] = useState(() => searchParams.get('origin') || '47.6062,-122.3321');
   const [destination, setDestination] = useState(() => searchParams.get('destination') || '47.6101,-122.3420');
   const [threshold, setThreshold] = useState(() => searchParams.get('threshold') || '500');
+  const [offBusSpeed, setOffBusSpeed] = useState(() => searchParams.get('offBusSpeed') || '1.4');
+  const [transferBuffer, setTransferBuffer] = useState(() => searchParams.get('transferBuffer') || '120');
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -161,9 +163,11 @@ function RidesPage() {
       date: dateFormatted,
       origin,
       destination,
-      threshold
+      threshold,
+      offBusSpeed,
+      transferBuffer
     }, { replace: true });
-  }, [date, origin, destination, threshold, setSearchParams]);
+  }, [date, origin, destination, threshold, offBusSpeed, transferBuffer, setSearchParams]);
 
   const fetchRides = useCallback(async () => {
     const dateFormatted = date.replace(/-/g, '');
@@ -176,7 +180,7 @@ function RidesPage() {
     syncParams();
 
     try {
-      const url = `${API_BASE_URL}/twoSeatRides/on/${dateFormatted}?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&threshold=${encodeURIComponent(threshold)}`;
+      const url = `${API_BASE_URL}/twoSeatRides/on/${dateFormatted}?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&threshold=${encodeURIComponent(threshold)}&offBusSpeed=${encodeURIComponent(offBusSpeed)}&transferBuffer=${encodeURIComponent(transferBuffer)}`;
       const resp = await fetch(url);
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
@@ -190,7 +194,7 @@ function RidesPage() {
     } finally {
       setLoading(false);
     }
-  }, [date, origin, destination, threshold, syncParams]);
+  }, [date, origin, destination, threshold, offBusSpeed, transferBuffer, syncParams]);
 
   // Auto-fetch on mount if params are present
   useEffect(() => {
@@ -238,6 +242,14 @@ function RidesPage() {
           <label>
             <span>Threshold (m)</span>
             <input type="number" value={threshold} onChange={(e) => setThreshold(e.target.value)} min="50" step="50" />
+          </label>
+          <label>
+            <span>Walk Speed (m/s)</span>
+            <input type="number" value={offBusSpeed} onChange={(e) => setOffBusSpeed(e.target.value)} min="0.1" step="0.1" />
+          </label>
+          <label>
+            <span>Transfer Buffer (s)</span>
+            <input type="number" value={transferBuffer} onChange={(e) => setTransferBuffer(e.target.value)} min="0" step="10" />
           </label>
           <button type="submit" className="search-btn" disabled={loading}>
             {loading ? 'Searching…' : 'Search'}

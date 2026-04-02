@@ -953,9 +953,11 @@ class GTFSDatabase {
    * @param {{lat: number, lon: number}} originLatLon - Origin coordinates
    * @param {{lat: number, lon: number}} destinationLatLon - Destination coordinates
    * @param {number} threshold - Maximum distance in meters for stop proximity
+   * @param {number} offBusSpeed - Walking speed in meters per second for transfer time calculation
+   * @param {number} transferBuffer - Additional buffer time in seconds added to transfer walking time
    * @returns {Array<Object>} - Array of rides with transfers and continuations
    */
-  getTwoSeatRidesOnDate(dateString, originLatLon, destinationLatLon, threshold) {
+  getTwoSeatRidesOnDate(dateString, originLatLon, destinationLatLon, threshold, offBusSpeed, transferBuffer) {
     const tripIds = this.getTripsOnDate(dateString);
 
     // Geographic grid index helpers
@@ -1056,10 +1058,11 @@ class GTFSDatabase {
             const dist = haversineDistance(stop.stop_lat, stop.stop_lon, entry.stop.stop_lat, entry.stop.stop_lon);
             if (dist > threshold) continue;
 
-            // Only consider if second leg departs within 1 hour of first leg arrival
+            // Only consider if second leg departs after first leg arrival + walk time + buffer
             const firstLegArrival = this.timeToSeconds(st.arrival_time);
             const secondLegDeparture = this.timeToSeconds(entry.stopTime.departure_time);
-            if (secondLegDeparture < firstLegArrival || secondLegDeparture - firstLegArrival > 3600) continue;
+            const minTransferTime = (dist / offBusSpeed) + transferBuffer;
+            if (firstLegArrival + minTransferTime > secondLegDeparture) continue;
 
             // Found a valid connection: this origin transfer stop connects to a dest trip
             if (!transferMap.has(st.stop_id)) {

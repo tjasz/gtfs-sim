@@ -406,13 +406,27 @@ app.get('/twoSeatRides/on/:date', (req, res) => {
       return res.status(400).json({ error: 'Invalid threshold. Must be a positive number (meters)' });
     }
 
-    const rides = gtfsDB.getTwoSeatRidesOnDate(dateString, originLatLon, destinationLatLon, threshold);
+    // Parse offBusSpeed (default 1.4 m/s, ~3.1 mph average walking speed)
+    const offBusSpeed = req.query.offBusSpeed ? parseFloat(req.query.offBusSpeed) : 1.4;
+    if (isNaN(offBusSpeed) || offBusSpeed <= 0) {
+      return res.status(400).json({ error: 'Invalid offBusSpeed. Must be a positive number (meters per second)' });
+    }
+
+    // Parse transferBuffer (default 120 seconds)
+    const transferBuffer = req.query.transferBuffer ? parseFloat(req.query.transferBuffer) : 120;
+    if (isNaN(transferBuffer) || transferBuffer < 0) {
+      return res.status(400).json({ error: 'Invalid transferBuffer. Must be a non-negative number (seconds)' });
+    }
+
+    const rides = gtfsDB.getTwoSeatRidesOnDate(dateString, originLatLon, destinationLatLon, threshold, offBusSpeed, transferBuffer);
 
     res.json({
       date: dateString,
       origin: originLatLon,
       destination: destinationLatLon,
       threshold,
+      offBusSpeed,
+      transferBuffer,
       ride_count: rides.length,
       rides
     });
