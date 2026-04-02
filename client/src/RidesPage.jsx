@@ -228,6 +228,7 @@ function RidesPage() {
             <span>Origin (lat,lon)</span>
             <input type="text" value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="47.6062,-122.3321" />
           </label>
+          <button type="button" className="swap-btn" title="Swap origin and destination" onClick={() => { setOrigin(destination); setDestination(origin); }}>⇄</button>
           <label>
             <span>Destination (lat,lon)</span>
             <input type="text" value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="47.6101,-122.3420" />

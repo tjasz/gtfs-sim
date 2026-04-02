@@ -82,6 +82,25 @@
   box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.15);
 }
 
+.swap-btn {
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 10px;
+  height: 36px;
+  line-height: 1;
+  color: #555;
+  transition: background 0.2s, color 0.2s;
+  align-self: flex-end;
+}
+
+.swap-btn:hover {
+  background: #e0e0e0;
+  color: #1a1a1a;
+}
+
 .search-btn {
   padding: 8px 24px;
   background: #2196F3;
