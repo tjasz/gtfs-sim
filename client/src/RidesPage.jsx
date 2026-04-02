@@ -46,6 +46,90 @@ function RouteBadge({ route }) {
   );
 }
 
+function bestArrivalTime(ride) {
+  let best = Infinity;
+  for (const transfer of ride.transfers) {
+    for (const cont of transfer.continuations) {
+      const t = timeToSeconds(cont.destination.stop_time.arrival_time);
+      if (t < best) best = t;
+    }
+  }
+  return best === Infinity ? null : best;
+}
+
+function RideCard({ ride }) {
+  const [expanded, setExpanded] = useState(false);
+  const bestArr = bestArrivalTime(ride);
+
+  return (
+    <div className={`ride-card ${expanded ? 'ride-card-expanded' : ''}`}>
+      <button
+        type="button"
+        className="ride-first-leg"
+        onClick={() => setExpanded(prev => !prev)}
+      >
+        <div className="leg-header leg-header-origin">
+          <span className="collapse-indicator">{expanded ? '\u25BC' : '\u25B6'}</span>
+          First Leg
+        </div>
+        <div className="leg-details">
+          <RouteBadge route={ride.route} />
+          <span className="leg-headsign">{ride.trip.trip_headsign}</span>
+          <span className="leg-stops">
+            <span className="stop-name">{ride.origin.stop_name}</span>
+            <span className="time-cell">{formatTime(timeToSeconds(ride.origin.stop_time.departure_time))}</span>
+            <span className="leg-arrow">→</span>
+            {bestArr !== null && (
+              <span className="best-arrival">arrives {formatTime(bestArr)}</span>
+            )}
+          </span>
+        </div>
+      </button>
+      {expanded && (
+        <div className="ride-transfers">
+          {ride.transfers.map((transfer, ti) => {
+            const sortedContinuations = [...transfer.continuations].sort((a, b) =>
+              timeToSeconds(a.transfer_stop.stop_time.departure_time) -
+              timeToSeconds(b.transfer_stop.stop_time.departure_time)
+            );
+            return (
+              <div key={ti} className="transfer-group">
+                <div className="transfer-stop-header">
+                  <span className="transfer-label">Transfer at</span>
+                  <span className="stop-name">{transfer.transfer_stop.stop_name}</span>
+                  <span className="time-sub">arr {formatTime(timeToSeconds(transfer.transfer_stop.stop_time.arrival_time))}</span>
+                </div>
+                <table className="continuations-table">
+                  <thead>
+                    <tr>
+                      <th>Route</th>
+                      <th>Board At</th>
+                      <th>Depart</th>
+                      <th>Destination</th>
+                      <th>Arrive</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedContinuations.map((cont, ci) => (
+                      <tr key={ci}>
+                        <td><RouteBadge route={cont.route} /></td>
+                        <td className="stop-name">{cont.transfer_stop.stop_name}</td>
+                        <td className="time-cell">{formatTime(timeToSeconds(cont.transfer_stop.stop_time.departure_time))}</td>
+                        <td className="stop-name">{cont.destination.stop_name}</td>
+                        <td className="time-cell">{formatTime(timeToSeconds(cont.destination.stop_time.arrival_time))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RidesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -166,59 +250,7 @@ function RidesPage() {
       {sortedRides.length > 0 && (
         <div className="rides-list">
           {sortedRides.map((ride, ri) => (
-            <div key={ri} className="ride-card">
-              <div className="ride-first-leg">
-                <div className="leg-header leg-header-origin">First Leg</div>
-                <div className="leg-details">
-                  <RouteBadge route={ride.route} />
-                  <span className="leg-headsign">{ride.trip.trip_headsign}</span>
-                  <span className="leg-stops">
-                    <span className="stop-name">{ride.origin.stop_name}</span>
-                    <span className="time-cell">{formatTime(timeToSeconds(ride.origin.stop_time.departure_time))}</span>
-                    <span className="leg-arrow">→</span>
-                  </span>
-                </div>
-              </div>
-              <div className="ride-transfers">
-                {ride.transfers.map((transfer, ti) => {
-                  const sortedContinuations = [...transfer.continuations].sort((a, b) =>
-                    timeToSeconds(a.transfer_stop.stop_time.departure_time) -
-                    timeToSeconds(b.transfer_stop.stop_time.departure_time)
-                  );
-                  return (
-                    <div key={ti} className="transfer-group">
-                      <div className="transfer-stop-header">
-                        <span className="transfer-label">Transfer at</span>
-                        <span className="stop-name">{transfer.transfer_stop.stop_name}</span>
-                        <span className="time-sub">arr {formatTime(timeToSeconds(transfer.transfer_stop.stop_time.arrival_time))}</span>
-                      </div>
-                      <table className="continuations-table">
-                        <thead>
-                          <tr>
-                            <th>Route</th>
-                            <th>Board At</th>
-                            <th>Depart</th>
-                            <th>Destination</th>
-                            <th>Arrive</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {sortedContinuations.map((cont, ci) => (
-                            <tr key={ci}>
-                              <td><RouteBadge route={cont.route} /></td>
-                              <td className="stop-name">{cont.transfer_stop.stop_name}</td>
-                              <td className="time-cell">{formatTime(timeToSeconds(cont.transfer_stop.stop_time.departure_time))}</td>
-                              <td className="stop-name">{cont.destination.stop_name}</td>
-                              <td className="time-cell">{formatTime(timeToSeconds(cont.destination.stop_time.arrival_time))}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <RideCard key={ri} ride={ride} />
           ))}
         </div>
       )}
