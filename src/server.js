@@ -406,16 +406,15 @@ app.get('/twoSeatRides/on/:date', (req, res) => {
       return res.status(400).json({ error: 'Invalid threshold. Must be a positive number (meters)' });
     }
 
-    const result = gtfsDB.getTwoSeatRidesOnDate(dateString, originLatLon, destinationLatLon, threshold);
+    const rides = gtfsDB.getTwoSeatRidesOnDate(dateString, originLatLon, destinationLatLon, threshold);
 
     res.json({
       date: dateString,
       origin: originLatLon,
       destination: destinationLatLon,
       threshold,
-      origin_trip_count: result.originTrips.length,
-      destination_trip_count: result.destinationTrips.length,
-      ...result
+      ride_count: rides.length,
+      rides
     });
   } catch (error) {
     console.error('Error fetching two-seat rides:', error);

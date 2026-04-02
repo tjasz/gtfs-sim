@@ -948,11 +948,12 @@ class GTFSDatabase {
   /**
    * Get two-seat (one-transfer) rides between an origin and destination on a given date.
    * Uses a geographic grid index for efficient spatial matching of transfer stops.
+   * Returns origin trips with their transfer points and all possible continuation trips.
    * @param {string} dateString - Date in YYYYMMDD format
    * @param {{lat: number, lon: number}} originLatLon - Origin coordinates
    * @param {{lat: number, lon: number}} destinationLatLon - Destination coordinates
    * @param {number} threshold - Maximum distance in meters for stop proximity
-   * @returns {Object} - { originTrips: [...], destinationTrips: [...] }
+   * @returns {Array<Object>} - Array of rides with transfers and continuations
    */
   getTwoSeatRidesOnDate(dateString, originLatLon, destinationLatLon, threshold) {
     const tripIds = this.getTripsOnDate(dateString);
@@ -1037,15 +1038,12 @@ class GTFSDatabase {
       }
     }
 
-    // Match origin trips to destination trips via transfer stop proximity
-    const validOriginTrips = new Map(); // oi -> {transferST, transferStop}
-    const validDestTrips = new Map();   // di -> {transferST, transferStop, bestDist}
+    // For each origin trip, find all transfer stops that connect to destination trips
+    const rides = [];
 
-    for (let oi = 0; oi < candidateOriginTrips.length; oi++) {
-      const ot = candidateOriginTrips[oi];
-      let bestDist = Infinity;
-      let bestTransferST = null;
-      let bestTransferStop = null;
+    for (const ot of candidateOriginTrips) {
+      // Map: origin transfer stop_id -> { stopTime, stop, continuations: [] }
+      const transferMap = new Map();
 
       for (const st of ot.transferSTs) {
         const stop = this.stops.get(st.stop_id);
@@ -1056,62 +1054,56 @@ class GTFSDatabase {
           if (!entries) continue;
           for (const entry of entries) {
             const dist = haversineDistance(stop.stop_lat, stop.stop_lon, entry.stop.stop_lat, entry.stop.stop_lon);
-            if (dist <= threshold) {
-              if (dist < bestDist) {
-                bestDist = dist;
-                bestTransferST = st;
-                bestTransferStop = stop;
-              }
-              const existing = validDestTrips.get(entry.destIdx);
-              if (!existing || dist < existing.bestDist) {
-                validDestTrips.set(entry.destIdx, {
-                  transferST: entry.stopTime,
-                  transferStop: entry.stop,
-                  bestDist: dist
-                });
-              }
+            if (dist > threshold) continue;
+
+            // Only consider if second leg departs within 1 hour of first leg arrival
+            const firstLegArrival = this.timeToSeconds(st.arrival_time);
+            const secondLegDeparture = this.timeToSeconds(entry.stopTime.departure_time);
+            if (secondLegDeparture < firstLegArrival || secondLegDeparture - firstLegArrival > 3600) continue;
+
+            // Found a valid connection: this origin transfer stop connects to a dest trip
+            if (!transferMap.has(st.stop_id)) {
+              transferMap.set(st.stop_id, { stopTime: st, stop, continuations: [] });
             }
+
+            const destTrip = candidateDestTrips[entry.destIdx];
+            const destTripData = this.trips.get(destTrip.tripId);
+            const destRoute = destTripData ? this.routes.get(destTripData.route_id) : null;
+            const destStop = this.stops.get(destTrip.destST.stop_id);
+
+            transferMap.get(st.stop_id).continuations.push({
+              route: destRoute ? { ...destRoute } : null,
+              trip: { ...destTripData },
+              transfer_stop: { ...entry.stop, stop_time: { ...entry.stopTime } },
+              destination: { ...destStop, stop_time: { ...destTrip.destST } }
+            });
           }
         }
       }
 
-      if (bestTransferST) {
-        validOriginTrips.set(oi, { transferST: bestTransferST, transferStop: bestTransferStop });
+      if (transferMap.size === 0) continue;
+
+      const trip = this.trips.get(ot.tripId);
+      const route = trip ? this.routes.get(trip.route_id) : null;
+      const originStop = this.stops.get(ot.originST.stop_id);
+
+      const transfers = [];
+      for (const transfer of transferMap.values()) {
+        transfers.push({
+          transfer_stop: { ...transfer.stop, stop_time: { ...transfer.stopTime } },
+          continuations: transfer.continuations
+        });
       }
-    }
 
-    // Build output
-    const originTripsResult = [];
-    for (const [oi, transfer] of validOriginTrips) {
-      const ct = candidateOriginTrips[oi];
-      const trip = this.trips.get(ct.tripId);
-      const route = trip ? this.routes.get(trip.route_id) : null;
-      const originStop = this.stops.get(ct.originST.stop_id);
-
-      originTripsResult.push({
+      rides.push({
         route: route ? { ...route } : null,
         trip: { ...trip },
-        origin: { ...originStop, stop_time: { ...ct.originST } },
-        transfer: { ...transfer.transferStop, stop_time: { ...transfer.transferST } }
+        origin: { ...originStop, stop_time: { ...ot.originST } },
+        transfers
       });
     }
 
-    const destinationTripsResult = [];
-    for (const [di, transfer] of validDestTrips) {
-      const ct = candidateDestTrips[di];
-      const trip = this.trips.get(ct.tripId);
-      const route = trip ? this.routes.get(trip.route_id) : null;
-      const destStop = this.stops.get(ct.destST.stop_id);
-
-      destinationTripsResult.push({
-        route: route ? { ...route } : null,
-        trip: { ...trip },
-        transfer: { ...transfer.transferStop, stop_time: { ...transfer.transferST } },
-        destination: { ...destStop, stop_time: { ...ct.destST } }
-      });
-    }
-
-    return { originTrips: originTripsResult, destinationTrips: destinationTripsResult };
+    return rides;
   }
 
   /**
