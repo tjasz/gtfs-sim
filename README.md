@@ -489,6 +489,216 @@ curl http://localhost:3000/vehicles/at/2025-11-19T09:27:00
 }
 ```
 
+### Get One-Seat Rides on a Date
+```
+GET /rides/on/:date?origin=lat,lon&destination=lat,lon&threshold=meters
+```
+Returns direct (one-seat) trips operating on a specific date that travel from a stop near the origin to a stop near the destination. Date must be in YYYYMMDD format.
+
+**Query Parameters:**
+- `origin` (required): Origin coordinates as `lat,lon` (e.g., `47.6062,-122.3321`)
+- `destination` (required): Destination coordinates as `lat,lon` (e.g., `47.6101,-122.3420`)
+- `threshold` (optional): Maximum distance in meters from origin/destination to matching stops (default: `500`)
+
+This endpoint:
+1. Finds all trips operating on the given date
+2. For each trip, identifies the closest stop within the threshold distance of both origin and destination
+3. Verifies the origin stop appears before the destination stop in the trip sequence
+4. Returns full route, trip, origin stop (with stop_time), and destination stop (with stop_time) data
+
+**Example:**
+```bash
+curl "http://localhost:3000/rides/on/20251119?origin=47.6062,-122.3321&destination=47.6101,-122.3420&threshold=500"
+```
+
+**Example Response:**
+```json
+{
+  "date": "20251119",
+  "origin": { "lat": 47.6062, "lon": -122.3321 },
+  "destination": { "lat": 47.6101, "lon": -122.342 },
+  "threshold": 500,
+  "ride_count": 2,
+  "rides": [
+    {
+      "route": {
+        "route_id": "100001",
+        "route_short_name": "1",
+        "route_long_name": "Kinnear - Downtown Seattle",
+        "route_type": 3
+      },
+      "trip": {
+        "trip_id": "347619649",
+        "route_id": "100001",
+        "service_id": "32350",
+        "trip_headsign": "Downtown Seattle",
+        "shape_id": "10002005"
+      },
+      "origin": {
+        "stop_id": "1-100",
+        "stop_name": "1st Ave & Spring St",
+        "stop_lat": 47.605137,
+        "stop_lon": -122.336533,
+        "stop_time": {
+          "trip_id": "347619649",
+          "stop_id": "1-100",
+          "arrival_time": "09:15:00",
+          "departure_time": "09:15:00",
+          "stop_sequence": 5
+        }
+      },
+      "destination": {
+        "stop_id": "1-200",
+        "stop_name": "3rd Ave & Pike St",
+        "stop_lat": 47.6101,
+        "stop_lon": -122.342,
+        "stop_time": {
+          "trip_id": "347619649",
+          "stop_id": "1-200",
+          "arrival_time": "09:25:00",
+          "departure_time": "09:25:00",
+          "stop_sequence": 12
+        }
+      }
+    }
+  ]
+}
+```
+
+**Error Response (400):**
+```json
+{
+  "error": "Missing required query parameter: origin (lat,lon)"
+}
+```
+
+### Get Two-Seat Rides on a Date
+```
+GET /twoSeatRides/on/:date?origin=lat,lon&destination=lat,lon&threshold=meters&offBusSpeed=mps&transferBuffer=seconds
+```
+Returns two-seat (one-transfer) rides operating on a specific date that connect an origin to a destination via a transfer between stops within the threshold distance. Date must be in YYYYMMDD format.
+
+**Query Parameters:**
+- `origin` (required): Origin coordinates as `lat,lon` (e.g., `47.6062,-122.3321`)
+- `destination` (required): Destination coordinates as `lat,lon` (e.g., `47.6101,-122.3420`)
+- `threshold` (optional): Maximum distance in meters for stop proximity (default: `500`)
+- `offBusSpeed` (optional): Walking speed in meters per second for transfer time calculation (default: `1.4`)
+- `transferBuffer` (optional): Additional buffer time in seconds added to transfer walking time (default: `120`)
+
+This endpoint:
+1. Finds all trips operating on the given date
+2. Identifies "origin trips" that have a stop near the origin and subsequent stops that could serve as transfer points
+3. Identifies "destination trips" that have a stop near the destination and preceding stops that could serve as transfer points
+4. Uses a geographic grid index to efficiently match transfer stops between origin and destination trips within the threshold distance
+5. Pairs each origin trip with its transfer points and matching continuation (destination) trips
+
+**Example:**
+```bash
+curl "http://localhost:3000/twoSeatRides/on/20251119?origin=47.6062,-122.3321&destination=47.6101,-122.3420&threshold=500"
+```
+
+**Example Response:**
+```json
+{
+  "date": "20251119",
+  "origin": { "lat": 47.6062, "lon": -122.3321 },
+  "destination": { "lat": 47.6101, "lon": -122.342 },
+  "threshold": 500,
+  "offBusSpeed": 1.4,
+  "transferBuffer": 120,
+  "ride_count": 2,
+  "rides": [
+    {
+      "route": {
+        "route_id": "100001",
+        "route_short_name": "1",
+        "route_long_name": "Kinnear - Downtown Seattle",
+        "route_type": 3
+      },
+      "trip": {
+        "trip_id": "347619649",
+        "route_id": "100001",
+        "service_id": "32350",
+        "trip_headsign": "Downtown Seattle",
+        "shape_id": "10002005"
+      },
+      "origin": {
+        "stop_id": "1-100",
+        "stop_name": "1st Ave & Spring St",
+        "stop_lat": 47.605137,
+        "stop_lon": -122.336533,
+        "stop_time": {
+          "arrival_time": "09:15:00",
+          "departure_time": "09:15:00",
+          "stop_sequence": 5
+        }
+      },
+      "transfers": [
+        {
+          "transfer_stop": {
+            "stop_id": "1-150",
+            "stop_name": "3rd Ave & Union St",
+            "stop_lat": 47.608,
+            "stop_lon": -122.338,
+            "stop_time": {
+              "arrival_time": "09:22:00",
+              "departure_time": "09:22:00",
+              "stop_sequence": 10
+            }
+          },
+          "continuations": [
+            {
+              "route": {
+                "route_id": "100002",
+                "route_short_name": "2",
+                "route_long_name": "Queen Anne - Downtown Seattle",
+                "route_type": 3
+              },
+              "trip": {
+                "trip_id": "347619700",
+                "route_id": "100002",
+                "service_id": "32350",
+                "trip_headsign": "Queen Anne",
+                "shape_id": "10003005"
+              },
+              "transfer_stop": {
+                "stop_id": "1-151",
+                "stop_name": "3rd Ave & Union St (NB)",
+                "stop_lat": 47.6081,
+                "stop_lon": -122.3379,
+                "stop_time": {
+                  "arrival_time": "09:30:00",
+                  "departure_time": "09:30:00",
+                  "stop_sequence": 3
+                }
+              },
+              "destination": {
+                "stop_id": "1-200",
+                "stop_name": "3rd Ave & Pike St",
+                "stop_lat": 47.6101,
+                "stop_lon": -122.342,
+                "stop_time": {
+                  "arrival_time": "09:40:00",
+                  "departure_time": "09:40:00",
+                  "stop_sequence": 8
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Error Response (400):**
+```json
+{
+  "error": "Missing required query parameter: origin (lat,lon)"
+}
+```
+
 ## Testing
 
 ### Manual Testing
@@ -525,6 +735,12 @@ curl http://localhost:3000/services/on/20251119
 
 # Vehicle positions at a specific time
 curl http://localhost:3000/vehicles/at/2025-11-19T09:27:00
+
+# One-seat rides between two locations
+curl "http://localhost:3000/rides/on/20251119?origin=47.6062,-122.3321&destination=47.6101,-122.3420&threshold=500"
+
+# Two-seat rides between two locations
+curl "http://localhost:3000/twoSeatRides/on/20251119?origin=47.6062,-122.3321&destination=47.6101,-122.3420&threshold=500"
 ```
 
 ### Using PowerShell
@@ -541,6 +757,12 @@ Invoke-WebRequest -Uri http://localhost:3000/trips/347619649 | Select-Object -Ex
 Invoke-WebRequest -Uri http://localhost:3000/trips/on/20251119 | Select-Object -Expand Content
 Invoke-WebRequest -Uri http://localhost:3000/services/on/20251119 | Select-Object -Expand Content
 Invoke-WebRequest -Uri http://localhost:3000/vehicles/at/2025-11-19T09:27:00 | Select-Object -Expand Content
+
+# One-seat rides
+Invoke-WebRequest -Uri "http://localhost:3000/rides/on/20251119?origin=47.6062,-122.3321&destination=47.6101,-122.3420&threshold=500" | Select-Object -Expand Content
+
+# Two-seat rides
+Invoke-WebRequest -Uri "http://localhost:3000/twoSeatRides/on/20251119?origin=47.6062,-122.3321&destination=47.6101,-122.3420&threshold=500" | Select-Object -Expand Content
 ```
 
 ### Using a Browser
@@ -554,6 +776,8 @@ Simply navigate to:
 - `http://localhost:3000/trips/on/20251119`
 - `http://localhost:3000/services/on/20251119`
 - `http://localhost:3000/vehicles/at/2025-11-19T09:27:00`
+- `http://localhost:3000/rides/on/20251119?origin=47.6062,-122.3321&destination=47.6101,-122.3420&threshold=500`
+- `http://localhost:3000/twoSeatRides/on/20251119?origin=47.6062,-122.3321&destination=47.6101,-122.3420&threshold=500`
 
 ### Using test.http File
 

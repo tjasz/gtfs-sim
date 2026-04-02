@@ -46,3 +46,15 @@ GET http://localhost:3000/vehicles/at/2025-11-19T17:30:00?routes=100479,2LINE,TL
 ### Test invalid datetime format (should return 400)
 GET http://localhost:3000/vehicles/at/2025-11-19 09:27:00
 
+### Get one-seat rides between two points
+GET http://localhost:3000/rides/on/20251119?origin=47.6062,-122.3321&destination=47.6101,-122.3420&threshold=500
+
+### Test missing origin (should return 400)
+GET http://localhost:3000/rides/on/20251119?destination=47.6101,-122.3420
+
+### Get two-seat rides between two points
+GET http://localhost:3000/twoSeatRides/on/20251119?origin=47.6062,-122.3321&destination=47.6101,-122.3420&threshold=500
+
+### Get two-seat rides with larger threshold
+GET http://localhost:3000/twoSeatRides/on/20251119?origin=47.6062,-122.3321&destination=47.6101,-122.3420&threshold=1000
+
